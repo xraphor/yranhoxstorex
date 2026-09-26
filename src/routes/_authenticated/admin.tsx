@@ -91,6 +91,13 @@ function toCents(value: string) {
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
 }
 
+function splitStockItems(value: string) {
+  return value
+    .split(/^\s*--\s*$/m)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function AdminPage() {
   const { isAdmin, loading } = useSession();
   const navigate = useNavigate();
@@ -304,10 +311,7 @@ function ProductsPanel() {
   const addStock = useMutation({
     mutationFn: async () => {
       if (!stockFor) return;
-      const rows = stockText
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean)
+      const rows = splitStockItems(stockText)
         .map((content) => ({ product_id: stockFor.id, content }));
       if (!rows.length) throw new Error("vazio");
       const { error } = await supabase.from("product_stock_items").insert(rows);
@@ -320,7 +324,7 @@ function ProductsPanel() {
       setStockFor(null);
       void queryClient.invalidateQueries();
     },
-    onError: () => toast.error("Cole ao menos uma linha de conteúdo."),
+    onError: () => toast.error("Cole ao menos um item de estoque."),
   });
 
   function editProduct(p: Record<string, unknown>) {
@@ -568,14 +572,20 @@ function ProductsPanel() {
             <DialogTitle>Estoque digital — {stockFor?.title}</DialogTitle>
           </DialogHeader>
           <p className="text-xs text-muted-foreground">
-            Cole uma chave, login ou conteúdo por linha. Cada linha é entregue em uma venda.
+            Separe cada entrega com uma linha contendo <strong>--</strong>. As linhas entre os
+            separadores serão entregues juntas em uma única venda.
           </p>
           <Textarea
             rows={8}
             value={stockText}
             onChange={(e) => setStockText(e.target.value)}
-            placeholder={"CHAVE-1111-2222\nlogin:senha\nhttps://link-privado"}
+            placeholder={"login: cliente1@email.com\nsenha: 123456\n--\nlogin: cliente2@email.com\nsenha: 789012"}
           />
+          {stockText.trim() ? (
+            <p className="text-xs font-medium text-primary">
+              {splitStockItems(stockText).length} entrega(s) pronta(s) para adicionar
+            </p>
+          ) : null}
           <Button onClick={() => addStock.mutate()} disabled={addStock.isPending}>
             {addStock.isPending ? <Loader2 className="size-4 animate-spin" /> : null} Adicionar ao
             estoque
