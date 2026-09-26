@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatBRL, ORDER_STATUS } from "@/lib/store";
+import { buildPixPayload } from "@/lib/pix";
 
 export const Route = createFileRoute("/_authenticated/pedido/$id")({
   head: () => ({
@@ -60,7 +61,19 @@ function OrderPage() {
   });
 
   const order = data?.order;
-  const payload = order?.pix_payload ?? settings?.pix_payload ?? "";
+  // Gera o Pix Copia e Cola dinamicamente com o valor exato do pedido.
+  // Fallback: payload salvo no pedido ou o payload estático das configurações.
+  const payload = order
+    ? settings?.pix_key
+      ? buildPixPayload({
+          key: settings.pix_key,
+          merchantName: "Raphael Ribeiro Gomes",
+          merchantCity: "SAO PAULO",
+          amountCents: order.total_cents,
+          txid: order.id.replace(/-/g, "").slice(0, 25),
+        })
+      : (order.pix_payload ?? settings?.pix_payload ?? "")
+    : "";
   const { left, label } = useCountdown(order?.expires_at);
 
   useEffect(() => {
