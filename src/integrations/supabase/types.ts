@@ -14,13 +14,261 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      order_items: {
+        Row: {
+          created_at: string
+          delivered_content: string | null
+          id: string
+          order_id: string
+          product_id: string | null
+          product_title: string
+          quantity: number
+          unit_price_cents: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivered_content?: string | null
+          id?: string
+          order_id: string
+          product_id?: string | null
+          product_title: string
+          quantity?: number
+          unit_price_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivered_content?: string | null
+          id?: string
+          order_id?: string
+          product_id?: string | null
+          product_title?: string
+          quantity?: number
+          unit_price_cents?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          buyer_email: string
+          created_at: string
+          expires_at: string
+          id: string
+          paid_at: string | null
+          pix_payload: string | null
+          status: string
+          total_cents: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          buyer_email: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          paid_at?: string | null
+          pix_payload?: string | null
+          status?: string
+          total_cents?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          buyer_email?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          paid_at?: string | null
+          pix_payload?: string | null
+          status?: string
+          total_cents?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      product_stock_items: {
+        Row: {
+          content: string
+          created_at: string
+          delivered: boolean
+          delivered_at: string | null
+          id: string
+          order_id: string | null
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          delivered?: boolean
+          delivered_at?: string | null
+          id?: string
+          order_id?: string | null
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          delivered?: boolean
+          delivered_at?: string | null
+          id?: string
+          order_id?: string | null
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_stock_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          description: string
+          featured: boolean
+          id: string
+          image_url: string | null
+          images: string[]
+          original_price_cents: number | null
+          price_cents: number
+          stock_count: number
+          tags: string[]
+          title: string
+          updated_at: string
+          warranty: string | null
+        }
+        Insert: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          description?: string
+          featured?: boolean
+          id?: string
+          image_url?: string | null
+          images?: string[]
+          original_price_cents?: number | null
+          price_cents?: number
+          stock_count?: number
+          tags?: string[]
+          title: string
+          updated_at?: string
+          warranty?: string | null
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          description?: string
+          featured?: boolean
+          id?: string
+          image_url?: string | null
+          images?: string[]
+          original_price_cents?: number | null
+          price_cents?: number
+          stock_count?: number
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          warranty?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      store_settings: {
+        Row: {
+          banner_subtitle: string
+          banner_title: string
+          id: number
+          pix_key: string | null
+          pix_payload: string | null
+          social_links: Json
+          support_link: string | null
+          top_notice: string | null
+          updated_at: string
+        }
+        Insert: {
+          banner_subtitle?: string
+          banner_title?: string
+          id?: number
+          pix_key?: string | null
+          pix_payload?: string | null
+          social_links?: Json
+          support_link?: string | null
+          top_notice?: string | null
+          updated_at?: string
+        }
+        Update: {
+          banner_subtitle?: string
+          banner_title?: string
+          id?: number
+          pix_key?: string | null
+          pix_payload?: string | null
+          social_links?: Json
+          support_link?: string | null
+          top_notice?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      approve_order: { Args: { p_order_id: string }; Returns: undefined }
+      is_store_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
