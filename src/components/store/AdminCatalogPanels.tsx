@@ -80,6 +80,7 @@ export function CategoriesPanel() {
 export function ReviewsPanel() {
   const qc = useQueryClient();
   const [productId, setProductId] = useState<string>("all");
+  const [authorName, setAuthorName] = useState("");
   const [message, setMessage] = useState("");
   const [rating, setRating] = useState(5);
 
@@ -108,7 +109,7 @@ export function ReviewsPanel() {
     mutationFn: async () => {
       const { error } = await supabase.from("product_reviews").insert({
         product_id: productId === "all" ? null : productId,
-        author_name: "Equipe yRanhox Store X",
+        author_name: authorName.trim(),
         message: message.trim(),
         rating,
         is_official: true,
@@ -117,6 +118,7 @@ export function ReviewsPanel() {
     },
     onSuccess: () => {
       toast.success("Comentário da loja publicado.");
+      setAuthorName("");
       setMessage("");
       void qc.invalidateQueries();
     },
@@ -137,7 +139,10 @@ export function ReviewsPanel() {
   return (
     <div className="space-y-4">
       <div className="panel space-y-3 p-5">
-        <p className="text-sm font-semibold">Publicar comentário da loja</p>
+        <div>
+          <p className="text-sm font-semibold">Publicar comentário personalizado</p>
+          <p className="mt-1 text-xs text-muted-foreground">Será identificado publicamente como conteúdo da loja.</p>
+        </div>
         <Select value={productId} onValueChange={setProductId}>
           <SelectTrigger>
             <SelectValue />
@@ -151,9 +156,15 @@ export function ReviewsPanel() {
             ))}
           </SelectContent>
         </Select>
+        <Input
+          value={authorName}
+          onChange={(e) => setAuthorName(e.target.value)}
+          placeholder="Nome exibido"
+          maxLength={80}
+        />
         <Stars value={rating} onChange={setRating} />
         <Textarea rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Mensagem" />
-        <Button disabled={!message.trim() || add.isPending} onClick={() => add.mutate()}>
+        <Button disabled={!authorName.trim() || !message.trim() || add.isPending} onClick={() => add.mutate()}>
           Publicar
         </Button>
       </div>

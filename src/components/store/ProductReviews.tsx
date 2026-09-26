@@ -106,7 +106,7 @@ export function ProductReviews({ productId }: { productId: string }) {
                 <span className="text-sm font-semibold">{r.author_name}</span>
                 {r.is_official ? (
                   <span className="inline-flex items-center gap-1 text-xs text-primary">
-                    <BadgeCheck className="size-3.5" /> Loja
+                    <BadgeCheck className="size-3.5" /> Publicado pela loja
                   </span>
                 ) : (
                   <span className="text-xs text-success">Compra verificada</span>
