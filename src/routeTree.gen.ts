@@ -16,6 +16,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedMeusPedidosRouteImport } from './routes/_authenticated/meus-pedidos'
 import { Route as ProdutoIdRouteImport } from './routes/produto.$id'
 import { Route as AuthenticatedPedidoIdRouteImport } from './routes/_authenticated/pedido.$id'
+import { Route as ApiPublicPixChatRouteImport } from './routes/api/public/pix-chat'
 import { Route as ApiPublicPixWebhookRouteImport } from './routes/api/public/pix-webhook'
 import { Route as ApiPublicProductImageRouteImport } from './routes/api/public/product-image'
 
@@ -54,6 +55,11 @@ const AuthenticatedPedidoIdRoute = AuthenticatedPedidoIdRouteImport.update({
   path: '/pedido/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicPixChatRoute = ApiPublicPixChatRouteImport.update({
+  id: '/api/public/pix-chat',
+  path: '/api/public/pix-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPixWebhookRoute = ApiPublicPixWebhookRouteImport.update({
   id: '/api/public/pix-webhook',
   path: '/api/public/pix-webhook',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/meus-pedidos': typeof AuthenticatedMeusPedidosRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/pedido/$id': typeof AuthenticatedPedidoIdRoute
+  '/api/public/pix-chat': typeof ApiPublicPixChatRoute
   '/api/public/pix-webhook': typeof ApiPublicPixWebhookRoute
   '/api/public/product-image': typeof ApiPublicProductImageRoute
 }
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/meus-pedidos': typeof AuthenticatedMeusPedidosRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/pedido/$id': typeof AuthenticatedPedidoIdRoute
+  '/api/public/pix-chat': typeof ApiPublicPixChatRoute
   '/api/public/pix-webhook': typeof ApiPublicPixWebhookRoute
   '/api/public/product-image': typeof ApiPublicProductImageRoute
 }
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/_authenticated/meus-pedidos': typeof AuthenticatedMeusPedidosRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/_authenticated/pedido/$id': typeof AuthenticatedPedidoIdRoute
+  '/api/public/pix-chat': typeof ApiPublicPixChatRoute
   '/api/public/pix-webhook': typeof ApiPublicPixWebhookRoute
   '/api/public/product-image': typeof ApiPublicProductImageRoute
 }
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/meus-pedidos'
     | '/produto/$id'
     | '/pedido/$id'
+    | '/api/public/pix-chat'
     | '/api/public/pix-webhook'
     | '/api/public/product-image'
   fileRoutesByTo: FileRoutesByTo
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/meus-pedidos'
     | '/produto/$id'
     | '/pedido/$id'
+    | '/api/public/pix-chat'
     | '/api/public/pix-webhook'
     | '/api/public/product-image'
   id:
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/_authenticated/meus-pedidos'
     | '/produto/$id'
     | '/_authenticated/pedido/$id'
+    | '/api/public/pix-chat'
     | '/api/public/pix-webhook'
     | '/api/public/product-image'
   fileRoutesById: FileRoutesById
@@ -136,6 +148,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ProdutoIdRoute: typeof ProdutoIdRoute
+  ApiPublicPixChatRoute: typeof ApiPublicPixChatRoute
   ApiPublicPixWebhookRoute: typeof ApiPublicPixWebhookRoute
   ApiPublicProductImageRoute: typeof ApiPublicProductImageRoute
 }
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPedidoIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/pix-chat': {
+      id: '/api/public/pix-chat'
+      path: '/api/public/pix-chat'
+      fullPath: '/api/public/pix-chat'
+      preLoaderRoute: typeof ApiPublicPixChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/pix-webhook': {
       id: '/api/public/pix-webhook'
       path: '/api/public/pix-webhook'
@@ -228,6 +248,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ProdutoIdRoute: ProdutoIdRoute,
+  ApiPublicPixChatRoute: ApiPublicPixChatRoute,
   ApiPublicPixWebhookRoute: ApiPublicPixWebhookRoute,
   ApiPublicProductImageRoute: ApiPublicProductImageRoute,
 }
