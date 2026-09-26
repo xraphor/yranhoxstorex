@@ -18,6 +18,8 @@ export const Route = createFileRoute("/auth")({
       { name: "description", content: "Acesse sua conta da yRanhox Store X para comprar e receber seus produtos digitais." },
       { property: "og:title", content: "Entrar — yRanhox Store X" },
       { property: "og:description", content: "Login e cadastro da yRanhox Store X." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: AuthPage,

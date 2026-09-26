@@ -9,4 +9,4 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-- Product media is stored in the public `product-images` bucket; only verified store administrators may upload or remove files, so catalog images persist without URL entry.
+- Product media is stored in the private `product-images` bucket; only verified store administrators may upload or remove files, while a read-only catalog endpoint serves images to shoppers.

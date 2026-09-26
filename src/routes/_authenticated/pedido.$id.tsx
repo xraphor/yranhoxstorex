@@ -31,6 +31,8 @@ export const Route = createFileRoute("/_authenticated/pedido/$id")({
       { name: "description", content: "Pague via Pix e receba seu produto digital na hora." },
       { property: "og:title", content: "Pagamento Pix — yRanhox Store X" },
       { property: "og:description", content: "Checkout Pix com entrega automática." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: OrderPage,
