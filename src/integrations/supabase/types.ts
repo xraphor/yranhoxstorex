@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
@@ -103,6 +124,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      product_reviews: {
+        Row: {
+          author_name: string
+          created_at: string
+          id: string
+          is_official: boolean
+          message: string
+          product_id: string | null
+          rating: number
+          user_id: string | null
+        }
+        Insert: {
+          author_name: string
+          created_at?: string
+          id?: string
+          is_official?: boolean
+          message: string
+          product_id?: string | null
+          rating?: number
+          user_id?: string | null
+        }
+        Update: {
+          author_name?: string
+          created_at?: string
+          id?: string
+          is_official?: boolean
+          message?: string
+          product_id?: string | null
+          rating?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_stock_items: {
         Row: {

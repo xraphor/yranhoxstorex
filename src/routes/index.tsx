@@ -8,7 +8,7 @@ import { ProductCard, type ProductRow } from "@/components/store/ProductCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CATEGORIES } from "@/lib/store";
+import { useCategories } from "@/hooks/useCategories";
 import heroImage from "@/assets/hero.jpg";
 
 export const Route = createFileRoute("/")({
@@ -34,6 +34,7 @@ function Home() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const { data: settings } = useStoreSettings();
+  const { data: categories } = useCategories();
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["products", "catalog"],
@@ -102,7 +103,7 @@ function Home() {
           >
             Todos
           </Button>
-          {CATEGORIES.map((c) => (
+          {(categories ?? []).map(({ name: c }) => (
             <Button
               key={c}
               size="sm"

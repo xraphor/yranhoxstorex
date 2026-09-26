@@ -36,7 +36,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CATEGORIES, formatBRL, ORDER_STATUS } from "@/lib/store";
+import { formatBRL, ORDER_STATUS } from "@/lib/store";
+import { useCategories } from "@/hooks/useCategories";
+import { CategoriesPanel, ReviewsPanel } from "@/components/store/AdminCatalogPanels";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -115,6 +117,8 @@ function AdminPage() {
             <TabsTrigger value="dashboard">Visão geral</TabsTrigger>
             <TabsTrigger value="products">Produtos</TabsTrigger>
             <TabsTrigger value="orders">Pedidos</TabsTrigger>
+            <TabsTrigger value="categories">Categorias</TabsTrigger>
+            <TabsTrigger value="reviews">Comentários</TabsTrigger>
             <TabsTrigger value="settings">Configurações</TabsTrigger>
           </TabsList>
           <TabsContent value="dashboard" className="pt-5">
@@ -125,6 +129,12 @@ function AdminPage() {
           </TabsContent>
           <TabsContent value="orders" className="pt-5">
             <OrdersPanel />
+          </TabsContent>
+          <TabsContent value="categories" className="pt-5">
+            <CategoriesPanel />
+          </TabsContent>
+          <TabsContent value="reviews" className="pt-5">
+            <ReviewsPanel />
           </TabsContent>
           <TabsContent value="settings" className="pt-5">
             <SettingsPanel />
@@ -216,6 +226,7 @@ function ProductsPanel() {
   const [open, setOpen] = useState(false);
   const [stockFor, setStockFor] = useState<{ id: string; title: string } | null>(null);
   const [stockText, setStockText] = useState("");
+  const { data: categories } = useCategories();
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["admin", "products"],
@@ -357,9 +368,9 @@ function ProductsPanel() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
+                    {(categories ?? []).map((c) => (
+                      <SelectItem key={c.id} value={c.name}>
+                        {c.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

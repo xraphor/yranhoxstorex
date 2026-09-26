@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { StoreShell } from "@/components/store/StoreShell";
+import { ProductReviews } from "@/components/store/ProductReviews";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -208,6 +209,7 @@ function ProductPage() {
           ) : null}
         </div>
       </div>
+      <ProductReviews productId={product.id} />
     </StoreShell>
   );
 }
