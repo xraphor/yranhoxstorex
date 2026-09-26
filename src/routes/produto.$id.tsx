@@ -66,7 +66,8 @@ function ProductPage() {
 
     if (error || !order) {
       setBuying(false);
-      return toast.error("Não foi possível criar o pedido.");
+      toast.error("Não foi possível criar o pedido.");
+      return;
     }
 
     const { error: itemError } = await supabase.from("order_items").insert({
@@ -77,7 +78,10 @@ function ProductPage() {
       quantity: 1,
     });
     setBuying(false);
-    if (itemError) return toast.error("Não foi possível adicionar o produto ao pedido.");
+    if (itemError) {
+      toast.error("Não foi possível adicionar o produto ao pedido.");
+      return;
+    }
 
     navigate({ to: "/pedido/$id", params: { id: order.id } });
   }

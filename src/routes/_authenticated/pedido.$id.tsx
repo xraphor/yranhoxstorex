@@ -86,7 +86,10 @@ function OrderPage() {
       .from("orders")
       .update({ status: "awaiting_confirmation" })
       .eq("id", id);
-    if (error) return toast.error("Não foi possível confirmar o envio do Pix.");
+    if (error) {
+      toast.error("Não foi possível confirmar o envio do Pix.");
+      return;
+    }
     toast.success("Recebemos seu aviso! A liberação ocorre após a confirmação do Pix.");
     void refetch();
   }
