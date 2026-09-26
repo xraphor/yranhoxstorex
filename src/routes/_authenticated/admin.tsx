@@ -1,14 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  ImagePlus,
   Pencil,
   Plus,
   Trash2,
   XCircle,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -226,6 +228,9 @@ function ProductsPanel() {
   const [open, setOpen] = useState(false);
   const [stockFor, setStockFor] = useState<{ id: string; title: string } | null>(null);
   const [stockText, setStockText] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const mainImageInput = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
   const { data: categories } = useCategories();
 
   const { data: products, isLoading } = useQuery({
@@ -336,6 +341,42 @@ function ProductsPanel() {
     setOpen(true);
   }
 
+  async function uploadImages(files: FileList | null, mode: "main" | "gallery") {
+    if (!files?.length) return;
+    setUploading(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) throw new Error("invalid-file");
+        const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+        const path = `${crypto.randomUUID()}.${extension}`;
+        const { error } = await supabase.storage.from("product-images").upload(path, file, {
+          contentType: file.type,
+          upsert: false,
+        });
+        if (error) throw error;
+        uploaded.push(`/api/public/product-image?path=${encodeURIComponent(path)}`);
+      }
+      if (mode === "main") {
+        setForm((current) => ({ ...current, image_url: uploaded[0] ?? current.image_url }));
+      } else {
+        setForm((current) => ({
+          ...current,
+          images: [...current.images.split("\n").filter(Boolean), ...uploaded].join("\n"),
+        }));
+      }
+      toast.success(uploaded.length === 1 ? "Foto adicionada." : `${uploaded.length} fotos adicionadas.`);
+    } catch {
+      toast.error("Não foi possível enviar a foto. Use JPG, PNG ou WebP com até 10 MB.");
+    } finally {
+      setUploading(false);
+      if (mainImageInput.current) mainImageInput.current.value = "";
+      if (galleryInput.current) galleryInput.current.value = "";
+    }
+  }
+
+  const galleryImages = form.images.split("\n").filter(Boolean);
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -394,18 +435,65 @@ function ProductsPanel() {
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                 />
               </Row>
-              <Row label="Imagem principal (URL)">
-                <Input
-                  value={form.image_url}
-                  onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+              <Row label="Foto principal">
+                <input
+                  ref={mainImageInput}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => void uploadImages(e.target.files, "main")}
                 />
+                {form.image_url ? (
+                  <div className="relative aspect-video overflow-hidden rounded-md border border-border bg-surface-2">
+                    <img src={form.image_url} alt="Prévia da foto principal" className="size-full object-cover" />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="destructive"
+                      className="absolute top-2 right-2 size-8"
+                      aria-label="Remover foto principal"
+                      onClick={() => setForm({ ...form, image_url: "" })}
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </div>
+                ) : null}
+                <Button type="button" variant="outline" disabled={uploading} onClick={() => mainImageInput.current?.click()}>
+                  {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+                  {form.image_url ? "Trocar foto" : "Escolher da galeria"}
+                </Button>
               </Row>
-              <Row label="Galeria (uma URL por linha)">
-                <Textarea
-                  rows={3}
-                  value={form.images}
-                  onChange={(e) => setForm({ ...form, images: e.target.value })}
+              <Row label="Galeria de fotos">
+                <input
+                  ref={galleryInput}
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => void uploadImages(e.target.files, "gallery")}
                 />
+                {galleryImages.length ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {galleryImages.map((image, index) => (
+                      <div key={image} className="relative aspect-square overflow-hidden rounded-md border border-border bg-surface-2">
+                        <img src={image} alt={`Foto ${index + 1}`} className="size-full object-cover" />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="destructive"
+                          className="absolute top-1 right-1 size-7"
+                          aria-label={`Remover foto ${index + 1}`}
+                          onClick={() => setForm({ ...form, images: galleryImages.filter((_, i) => i !== index).join("\n") })}
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                <Button type="button" variant="outline" disabled={uploading} onClick={() => galleryInput.current?.click()}>
+                  <ImagePlus className="size-4" /> Adicionar fotos
+                </Button>
               </Row>
               <Row label="Tags (separadas por vírgula)">
                 <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
