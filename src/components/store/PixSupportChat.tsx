@@ -13,8 +13,8 @@ export function PixSupportChat({
   productTitle,
   totalBrl,
 }: {
-  productTitle?: string;
-  totalBrl?: string;
+  productTitle?: string | undefined;
+  totalBrl?: string | undefined;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "assistant", content: GREETING },
