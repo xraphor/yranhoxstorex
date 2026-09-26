@@ -168,3 +168,16 @@
     linear-gradient(90deg, oklch(from var(--primary) l c h / 0.08) 1px, transparent 1px);
   background-size: 44px 44px;
 }
+
+/* Hide the "Made with Lovable" badge injected on published deployments */
+aside#lovable-badge,
+#lovable-badge,
+#lovable-badge-cta,
+#lovable-badge-text,
+#lovable-badge-divider,
+#lovable-badge-close {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
