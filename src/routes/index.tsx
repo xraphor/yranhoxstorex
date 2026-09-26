@@ -25,6 +25,8 @@ export const Route = createFileRoute("/")({
         property: "og:description",
         content: "Contas, keys, scripts e métodos entregues na hora após o pagamento via Pix.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Home,

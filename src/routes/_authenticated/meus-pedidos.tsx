@@ -19,6 +19,8 @@ export const Route = createFileRoute("/_authenticated/meus-pedidos")({
       },
       { property: "og:title", content: "Meus pedidos — yRanhox Store X" },
       { property: "og:description", content: "Acesse e copie seus produtos digitais." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: MyOrders,

@@ -1,8 +1,8 @@
 # Roadmap
 
-- [ ] Exibir confirmação clara após o aviso de Pix enviado
-- [ ] Permitir nome personalizado em comentários administrativos com identificação da loja
-- [ ] Permitir escolher e enviar fotos no editor de produtos
-- [ ] Adicionar Google e Microsoft com ícones na entrada
-- [ ] Aplicar nova marca 3D no cabeçalho e na entrada
-- [ ] Validar o fluxo e as telas principais
+- [x] Exibir confirmação clara após o aviso de Pix enviado
+- [x] Permitir nome personalizado em comentários administrativos com identificação da loja
+- [x] Permitir escolher e enviar fotos no editor de produtos
+- [x] Adicionar Google e Microsoft com ícones na entrada
+- [x] Aplicar nova marca 3D no cabeçalho e na entrada
+- [x] Validar o fluxo e as telas principais

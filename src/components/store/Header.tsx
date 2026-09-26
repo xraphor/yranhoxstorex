@@ -1,12 +1,13 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, Menu, Package, Shield, User, Zap } from "lucide-react";
+import { LogOut, Menu, Package, Shield, User } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { AccentPicker } from "./AccentPicker";
+import { BrandLogo } from "./BrandLogo";
 
 const NAV = [
   { to: "/", label: "Loja" },
@@ -35,12 +36,7 @@ export function Header({ notice }: { notice?: string | null }) {
       ) : null}
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4">
         <Link to="/" className="flex items-center gap-2">
-          <span className="grid size-9 place-items-center rounded-lg border border-primary/40 bg-primary/15 glow">
-            <Zap className="size-5 text-primary" />
-          </span>
-          <span className="font-display text-sm leading-tight font-bold sm:text-base">
-            yRanhox <span className="text-primary text-glow">Store X</span>
-          </span>
+          <BrandLogo compact />
         </Link>
 
         <nav className="ml-6 hidden items-center gap-1 md:flex">

@@ -10,6 +10,17 @@ import { StoreShell, useStoreSettings } from "@/components/store/StoreShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { formatBRL, ORDER_STATUS } from "@/lib/store";
 import { buildPixPayload } from "@/lib/pix";
 
@@ -20,6 +31,8 @@ export const Route = createFileRoute("/_authenticated/pedido/$id")({
       { name: "description", content: "Pague via Pix e receba seu produto digital na hora." },
       { property: "og:title", content: "Pagamento Pix — yRanhox Store X" },
       { property: "og:description", content: "Checkout Pix com entrega automática." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: OrderPage,
@@ -162,7 +175,7 @@ function OrderPage() {
                     size="sm"
                     variant="outline"
                     className="mt-3"
-                    onClick={() => copy(item.delivered_content!, "Conteúdo copiado!")}
+                    onClick={() => copy(item.delivered_content ?? "", "Conteúdo copiado!")}
                   >
                     <Copy className="size-4" /> Copiar Chave/Login
                   </Button>
@@ -219,13 +232,31 @@ function OrderPage() {
               </Button>
             </div>
 
-            <Button
-              className="w-full"
-              disabled={order.status === "awaiting_confirmation"}
-              onClick={markPaid}
-            >
-              {order.status === "awaiting_confirmation" ? "Aguardando confirmação" : "Já efetuei o Pix"}
-            </Button>
+            {order.status === "awaiting_confirmation" ? (
+              <div className="rounded-md border border-warning/40 bg-warning/10 p-4 text-center">
+                <CheckCircle2 className="mx-auto size-6 text-warning" />
+                <p className="mt-2 text-sm font-semibold text-warning">Aviso de pagamento enviado</p>
+                <p className="mt-1 text-xs text-muted-foreground">Estamos confirmando o Pix. Esta página atualiza automaticamente.</p>
+              </div>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button className="w-full">Já efetuei o Pix</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar envio do Pix?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Confirme somente depois de enviar exatamente {formatBRL(order.total_cents)}. O produto será liberado após a conferência do pagamento.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Voltar</AlertDialogCancel>
+                    <AlertDialogAction onClick={markPaid}>Confirmar pagamento enviado</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
             <p className="text-center text-xs text-muted-foreground">
               Assim que o pagamento é confirmado, seu produto aparece aqui automaticamente.
             </p>

@@ -25,6 +25,8 @@ export const Route = createFileRoute("/produto/$id")({
         property: "og:description",
         content: "Compra instantânea via Pix com entrega automática.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ProductPage,
