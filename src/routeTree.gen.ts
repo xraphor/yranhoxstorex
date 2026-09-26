@@ -16,6 +16,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedMeusPedidosRouteImport } from './routes/_authenticated/meus-pedidos'
 import { Route as ProdutoIdRouteImport } from './routes/produto.$id'
 import { Route as AuthenticatedPedidoIdRouteImport } from './routes/_authenticated/pedido.$id'
+import { Route as ApiPublicPixWebhookRouteImport } from './routes/api/public/pix-webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +53,11 @@ const AuthenticatedPedidoIdRoute = AuthenticatedPedidoIdRouteImport.update({
   path: '/pedido/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicPixWebhookRoute = ApiPublicPixWebhookRouteImport.update({
+  id: '/api/public/pix-webhook',
+  path: '/api/public/pix-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/meus-pedidos': typeof AuthenticatedMeusPedidosRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/pedido/$id': typeof AuthenticatedPedidoIdRoute
+  '/api/public/pix-webhook': typeof ApiPublicPixWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/meus-pedidos': typeof AuthenticatedMeusPedidosRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/pedido/$id': typeof AuthenticatedPedidoIdRoute
+  '/api/public/pix-webhook': typeof ApiPublicPixWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -78,14 +86,27 @@ export interface FileRoutesById {
   '/_authenticated/meus-pedidos': typeof AuthenticatedMeusPedidosRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/_authenticated/pedido/$id': typeof AuthenticatedPedidoIdRoute
+  '/api/public/pix-webhook': typeof ApiPublicPixWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/admin' | '/meus-pedidos' | '/produto/$id' | '/pedido/$id'
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/meus-pedidos'
+    | '/produto/$id'
+    | '/pedido/$id'
+    | '/api/public/pix-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/auth' | '/admin' | '/meus-pedidos' | '/produto/$id' | '/pedido/$id'
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/meus-pedidos'
+    | '/produto/$id'
+    | '/pedido/$id'
+    | '/api/public/pix-webhook'
   id:
     | '__root__'
     | '/'
@@ -95,6 +116,7 @@ export interface FileRouteTypes {
     | '/_authenticated/meus-pedidos'
     | '/produto/$id'
     | '/_authenticated/pedido/$id'
+    | '/api/public/pix-webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -102,6 +124,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ProdutoIdRoute: typeof ProdutoIdRoute
+  ApiPublicPixWebhookRoute: typeof ApiPublicPixWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -155,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPedidoIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/pix-webhook': {
+      id: '/api/public/pix-webhook'
+      path: '/api/public/pix-webhook'
+      fullPath: '/api/public/pix-webhook'
+      preLoaderRoute: typeof ApiPublicPixWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -178,6 +208,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ProdutoIdRoute: ProdutoIdRoute,
+  ApiPublicPixWebhookRoute: ApiPublicPixWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
