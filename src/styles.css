@@ -155,6 +155,33 @@
   text-shadow: 0 0 18px oklch(from var(--primary) l c h / 0.7);
 }
 
+@utility brand-bolt {
+  filter:
+    sepia(1)
+    saturate(5)
+    hue-rotate(var(--bolt-hue, 250deg))
+    drop-shadow(0 0 5px oklch(from var(--primary) l c h / 0.8))
+    drop-shadow(0 0 13px oklch(from var(--primary) l c h / 0.45));
+  transition: filter 0.3s ease;
+}
+
+:root,
+[data-accent="purple"] {
+  --bolt-hue: 250deg;
+}
+
+[data-accent="cyan"] {
+  --bolt-hue: 155deg;
+}
+
+[data-accent="emerald"] {
+  --bolt-hue: 105deg;
+}
+
+[data-accent="orange"] {
+  --bolt-hue: 330deg;
+}
+
 @utility panel {
   background-color: oklch(from var(--surface) l c h / 0.75);
   border: 1px solid var(--color-border);
