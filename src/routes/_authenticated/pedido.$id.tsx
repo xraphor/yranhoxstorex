@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatBRL, ORDER_STATUS } from "@/lib/store";
 import { buildPixPayload } from "@/lib/pix";
+import { PixSupportChat } from "@/components/store/PixSupportChat";
 
 export const Route = createFileRoute("/_authenticated/pedido/$id")({
   head: () => ({
@@ -233,10 +234,16 @@ function OrderPage() {
             </div>
 
             {order.status === "awaiting_confirmation" ? (
-              <div className="rounded-md border border-warning/40 bg-warning/10 p-4 text-center">
-                <CheckCircle2 className="mx-auto size-6 text-warning" />
-                <p className="mt-2 text-sm font-semibold text-warning">Aviso de pagamento enviado</p>
-                <p className="mt-1 text-xs text-muted-foreground">Estamos confirmando o Pix. Esta página atualiza automaticamente.</p>
+              <div className="space-y-4">
+                <div className="rounded-md border border-warning/40 bg-warning/10 p-4 text-center">
+                  <CheckCircle2 className="mx-auto size-6 text-warning" />
+                  <p className="mt-2 text-sm font-semibold text-warning">Aviso de pagamento enviado</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Estamos confirmando o Pix. Esta página atualiza automaticamente.</p>
+                </div>
+                <PixSupportChat
+                  productTitle={data?.items[0]?.product_title}
+                  totalBrl={formatBRL(order.total_cents)}
+                />
               </div>
             ) : (
               <AlertDialog>
