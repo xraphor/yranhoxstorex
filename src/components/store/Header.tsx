@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, Menu, Package, Shield, User } from "lucide-react";
+import { LogOut, Menu, Package, Shield, Store, User, Wallet } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
@@ -12,6 +12,8 @@ import { BrandLogo } from "./BrandLogo";
 const NAV = [
   { to: "/", label: "Loja" },
   { to: "/meus-pedidos", label: "Meus Pedidos" },
+  { to: "/vender", label: "Vender" },
+  { to: "/carteira", label: "Carteira" },
 ] as const;
 
 export function Header({ notice }: { notice?: string | null }) {
@@ -99,6 +101,12 @@ export function Header({ notice }: { notice?: string | null }) {
                   className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-surface-2"
                 >
                   <Package className="size-4" /> Meus Pedidos
+                </Link>
+                <Link to="/vender" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-surface-2">
+                  <Store className="size-4" /> Vender
+                </Link>
+                <Link to="/carteira" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-surface-2">
+                  <Wallet className="size-4" /> Carteira
                 </Link>
                 {isAdmin ? (
                   <Link

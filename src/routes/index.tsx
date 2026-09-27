@@ -43,7 +43,7 @@ function Home() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id,title,category,price_cents,original_price_cents,image_url,stock_count,featured")
+        .select("id,title,category,price_cents,original_price_cents,image_url,stock_count,featured,seller_name")
         .eq("active", true)
         .order("featured", { ascending: false })
         .order("created_at", { ascending: false });
