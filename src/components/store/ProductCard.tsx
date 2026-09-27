@@ -13,6 +13,7 @@ export type ProductRow = {
   image_url: string | null;
   stock_count: number;
   featured: boolean;
+  seller_name?: string | null;
 };
 
 export function ProductCard({ product }: { product: ProductRow }) {
@@ -56,6 +57,9 @@ export function ProductCard({ product }: { product: ProductRow }) {
             {product.title}
           </h3>
         </Link>
+        <p className="text-[11px] text-muted-foreground">
+          Vendido por {product.seller_name ?? "yRanhox Store X"}
+        </p>
         <div className="mt-auto flex items-end gap-2">
           <span className="font-display text-lg font-bold text-primary">
             {formatBRL(product.price_cents)}
