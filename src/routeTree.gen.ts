@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedCarteiraRouteImport } from './routes/_authenticated/carteira'
 import { Route as AuthenticatedMeusPedidosRouteImport } from './routes/_authenticated/meus-pedidos'
+import { Route as AuthenticatedVenderRouteImport } from './routes/_authenticated/vender'
 import { Route as ProdutoIdRouteImport } from './routes/produto.$id'
 import { Route as AuthenticatedPedidoIdRouteImport } from './routes/_authenticated/pedido.$id'
 import { Route as ApiPublicPixChatRouteImport } from './routes/api/public/pix-chat'
@@ -39,12 +41,22 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCarteiraRoute = AuthenticatedCarteiraRouteImport.update({
+  id: '/carteira',
+  path: '/carteira',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMeusPedidosRoute =
   AuthenticatedMeusPedidosRouteImport.update({
     id: '/meus-pedidos',
     path: '/meus-pedidos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedVenderRoute = AuthenticatedVenderRouteImport.update({
+  id: '/vender',
+  path: '/vender',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ProdutoIdRoute = ProdutoIdRouteImport.update({
   id: '/produto/$id',
   path: '/produto/$id',
@@ -75,7 +87,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/carteira': typeof AuthenticatedCarteiraRoute
   '/meus-pedidos': typeof AuthenticatedMeusPedidosRoute
+  '/vender': typeof AuthenticatedVenderRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/pedido/$id': typeof AuthenticatedPedidoIdRoute
   '/api/public/pix-chat': typeof ApiPublicPixChatRoute
@@ -86,7 +100,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/carteira': typeof AuthenticatedCarteiraRoute
   '/meus-pedidos': typeof AuthenticatedMeusPedidosRoute
+  '/vender': typeof AuthenticatedVenderRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/pedido/$id': typeof AuthenticatedPedidoIdRoute
   '/api/public/pix-chat': typeof ApiPublicPixChatRoute
@@ -99,7 +115,9 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/carteira': typeof AuthenticatedCarteiraRoute
   '/_authenticated/meus-pedidos': typeof AuthenticatedMeusPedidosRoute
+  '/_authenticated/vender': typeof AuthenticatedVenderRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/_authenticated/pedido/$id': typeof AuthenticatedPedidoIdRoute
   '/api/public/pix-chat': typeof ApiPublicPixChatRoute
@@ -112,7 +130,9 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin'
+    | '/carteira'
     | '/meus-pedidos'
+    | '/vender'
     | '/produto/$id'
     | '/pedido/$id'
     | '/api/public/pix-chat'
@@ -123,7 +143,9 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin'
+    | '/carteira'
     | '/meus-pedidos'
+    | '/vender'
     | '/produto/$id'
     | '/pedido/$id'
     | '/api/public/pix-chat'
@@ -135,7 +157,9 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/admin'
+    | '/_authenticated/carteira'
     | '/_authenticated/meus-pedidos'
+    | '/_authenticated/vender'
     | '/produto/$id'
     | '/_authenticated/pedido/$id'
     | '/api/public/pix-chat'
@@ -183,11 +207,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/carteira': {
+      id: '/_authenticated/carteira'
+      path: '/carteira'
+      fullPath: '/carteira'
+      preLoaderRoute: typeof AuthenticatedCarteiraRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/meus-pedidos': {
       id: '/_authenticated/meus-pedidos'
       path: '/meus-pedidos'
       fullPath: '/meus-pedidos'
       preLoaderRoute: typeof AuthenticatedMeusPedidosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/vender': {
+      id: '/_authenticated/vender'
+      path: '/vender'
+      fullPath: '/vender'
+      preLoaderRoute: typeof AuthenticatedVenderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/produto/$id': {
@@ -230,13 +268,17 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedCarteiraRoute: typeof AuthenticatedCarteiraRoute
   AuthenticatedMeusPedidosRoute: typeof AuthenticatedMeusPedidosRoute
+  AuthenticatedVenderRoute: typeof AuthenticatedVenderRoute
   AuthenticatedPedidoIdRoute: typeof AuthenticatedPedidoIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedCarteiraRoute: AuthenticatedCarteiraRoute,
   AuthenticatedMeusPedidosRoute: AuthenticatedMeusPedidosRoute,
+  AuthenticatedVenderRoute: AuthenticatedVenderRoute,
   AuthenticatedPedidoIdRoute: AuthenticatedPedidoIdRoute,
 }
 
