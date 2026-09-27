@@ -24,7 +24,6 @@ import {
 import { formatBRL, ORDER_STATUS } from "@/lib/store";
 import { buildPixPayload } from "@/lib/pix";
 import { PixSupportChat } from "@/components/store/PixSupportChat";
-import { notifyAdmin } from "@/lib/notify.functions";
 
 export const Route = createFileRoute("/_authenticated/pedido/$id")({
   head: () => ({
@@ -119,7 +118,6 @@ function OrderPage() {
       return;
     }
     toast.success("Recebemos seu aviso! A liberação ocorre após a confirmação do Pix.");
-    void notifyAdmin({ data: { kind: "pix", refId: id } }).catch(() => undefined);
     void refetch();
   }
 

@@ -219,8 +219,6 @@ export type Database = {
           images: string[]
           original_price_cents: number | null
           price_cents: number
-          seller_id: string | null
-          seller_name: string | null
           stock_count: number
           tags: string[]
           title: string
@@ -238,8 +236,6 @@ export type Database = {
           images?: string[]
           original_price_cents?: number | null
           price_cents?: number
-          seller_id?: string | null
-          seller_name?: string | null
           stock_count?: number
           tags?: string[]
           title: string
@@ -257,8 +253,6 @@ export type Database = {
           images?: string[]
           original_price_cents?: number | null
           price_cents?: number
-          seller_id?: string | null
-          seller_name?: string | null
           stock_count?: number
           tags?: string[]
           title?: string
@@ -291,60 +285,6 @@ export type Database = {
           id?: string
           role?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      push_subscriptions: {
-        Row: {
-          auth: string
-          created_at: string
-          endpoint: string
-          id: string
-          p256dh: string
-          user_id: string
-        }
-        Insert: {
-          auth: string
-          created_at?: string
-          endpoint: string
-          id?: string
-          p256dh: string
-          user_id?: string
-        }
-        Update: {
-          auth?: string
-          created_at?: string
-          endpoint?: string
-          id?: string
-          p256dh?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      seller_profiles: {
-        Row: {
-          created_at: string
-          display_name: string
-          pix_key: string | null
-          status: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          display_name: string
-          pix_key?: string | null
-          status?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          display_name?: string
-          pix_key?: string | null
-          status?: string
-          updated_at?: string
-          user_id?: string
         }
         Relationships: []
       }
@@ -384,89 +324,6 @@ export type Database = {
         }
         Relationships: []
       }
-      wallet_entries: {
-        Row: {
-          amount_cents: number
-          created_at: string
-          description: string
-          id: string
-          kind: string
-          order_id: string | null
-          owner_type: string
-          release_at: string
-          user_id: string | null
-          withdrawal_id: string | null
-        }
-        Insert: {
-          amount_cents: number
-          created_at?: string
-          description?: string
-          id?: string
-          kind: string
-          order_id?: string | null
-          owner_type: string
-          release_at?: string
-          user_id?: string | null
-          withdrawal_id?: string | null
-        }
-        Update: {
-          amount_cents?: number
-          created_at?: string
-          description?: string
-          id?: string
-          kind?: string
-          order_id?: string | null
-          owner_type?: string
-          release_at?: string
-          user_id?: string | null
-          withdrawal_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "wallet_entries_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      withdrawals: {
-        Row: {
-          amount_cents: number
-          created_at: string
-          id: string
-          owner_type: string
-          pix_key: string
-          processed_at: string | null
-          seller_name: string | null
-          status: string
-          user_id: string | null
-        }
-        Insert: {
-          amount_cents: number
-          created_at?: string
-          id?: string
-          owner_type: string
-          pix_key: string
-          processed_at?: string | null
-          seller_name?: string | null
-          status?: string
-          user_id?: string | null
-        }
-        Update: {
-          amount_cents?: number
-          created_at?: string
-          id?: string
-          owner_type?: string
-          pix_key?: string
-          processed_at?: string | null
-          seller_name?: string | null
-          status?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
@@ -474,21 +331,6 @@ export type Database = {
     Functions: {
       approve_order: { Args: { p_order_id: string }; Returns: undefined }
       is_store_admin: { Args: never; Returns: boolean }
-      process_withdrawal: {
-        Args: { p_id: string; p_paid: boolean }
-        Returns: undefined
-      }
-      request_withdrawal: {
-        Args: { p_amount_cents: number; p_pix_key: string }
-        Returns: string
-      }
-      wallet_balance: {
-        Args: { p_owner?: string }
-        Returns: {
-          available_cents: number
-          pending_cents: number
-        }[]
-      }
     }
     Enums: {
       [_ in never]: never

@@ -148,9 +148,6 @@ function ProductPage() {
             <Badge variant="outline" className="border-primary/40 text-primary">
               {product.category}
             </Badge>
-            <Badge variant="outline" className="text-muted-foreground">
-              Vendido por {product.seller_name ?? "yRanhox Store X"}
-            </Badge>
             <Badge
               variant="outline"
               className={

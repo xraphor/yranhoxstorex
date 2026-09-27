@@ -16,7 +16,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { StoreShell } from "@/components/store/StoreShell";
-import { AdminNotifier } from "@/components/store/AdminNotifier";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,7 +123,6 @@ function AdminPage() {
     <StoreShell>
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-10">
         <h1 className="font-display text-xl">Painel administrativo</h1>
-        <AdminNotifier />
         <Tabs defaultValue="dashboard">
           <TabsList className="flex-wrap">
             <TabsTrigger value="dashboard">Visão geral</TabsTrigger>
@@ -140,7 +138,7 @@ function AdminPage() {
           <TabsContent value="products" className="pt-5">
             <ProductsPanel />
           </TabsContent>
-          <TabsContent value="orders" className="pt-5" id="pedidos">
+          <TabsContent value="orders" className="pt-5">
             <OrdersPanel />
           </TabsContent>
           <TabsContent value="categories" className="pt-5">
@@ -655,13 +653,6 @@ function OrdersPanel() {
               <Badge variant="outline" className={status.className}>
                 {status.label}
               </Badge>
-              {order.status !== "paid" && order.status !== "cancelled" ? (
-                <Button size="sm" variant="outline" asChild>
-                  <a href="nuapp://" onClick={() => setTimeout(() => window.open("https://app.nubank.com.br", "_blank"), 800)}>
-                    Abrir Nubank
-                  </a>
-                </Button>
-              ) : null}
               {order.status !== "paid" ? (
                 <Button size="sm" onClick={() => approve.mutate(order.id)} disabled={approve.isPending}>
                   <CheckCircle2 className="size-4" /> Aprovar e entregar
