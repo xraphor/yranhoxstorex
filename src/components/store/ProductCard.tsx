@@ -28,7 +28,7 @@ export function ProductCard({ product }: { product: ProductRow }) {
               src={product.image_url}
               alt={product.title}
               loading="lazy"
-              className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className="size-full object-contain transition-transform duration-300 group-hover:scale-105"
             />
           ) : null}
         </div>

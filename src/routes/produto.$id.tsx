@@ -122,7 +122,7 @@ function ProductPage() {
               <img
                 src={gallery[activeImage]}
                 alt={product.title}
-                className="size-full object-cover"
+                className="size-full object-contain"
               />
             ) : null}
           </div>
@@ -136,7 +136,7 @@ function ProductPage() {
                     i === activeImage ? "border-primary glow" : "border-border"
                   }`}
                 >
-                  <img src={img} alt="" className="size-full object-cover" />
+                  <img src={img} alt="" className="size-full object-contain" />
                 </button>
               ))}
             </div>
