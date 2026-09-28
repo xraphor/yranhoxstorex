@@ -22,15 +22,17 @@ export function ProductCard({ product }: { product: ProductRow }) {
   return (
     <article className="group flex min-w-0 flex-col overflow-hidden rounded-md border border-border/70 bg-card shadow-sm transition-colors hover:border-primary/50">
       <Link to="/produto/$id" params={{ id: product.id }} className="relative block p-1 sm:p-1.5">
-        <div className="grid-lines aspect-square w-full overflow-hidden rounded-md bg-surface-2">
+        <div className="w-full overflow-hidden rounded-md">
           {product.image_url ? (
             <img
               src={product.image_url}
               alt={product.title}
               loading="lazy"
-              className="size-full object-contain transition-transform duration-300 group-hover:scale-105"
+              className="w-full transition-transform duration-300 group-hover:scale-105"
             />
-          ) : null}
+          ) : (
+            <div className="grid-lines aspect-square w-full bg-surface-2" />
+          )}
         </div>
         <div className="absolute top-2 left-2 max-w-[calc(100%-1rem)] sm:top-2.5 sm:left-2.5">
           <Badge variant="outline" className="h-4 max-w-full truncate rounded-sm border-primary/40 bg-background/85 px-1 text-[7px] leading-none text-primary sm:h-5 sm:px-1.5 sm:text-[9px]">
