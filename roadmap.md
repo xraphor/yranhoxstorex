@@ -8,3 +8,4 @@
 - [x] Validar o fluxo e as telas principais
 - [x] Substituir a marca por um raio 3D que acompanha a cor do tema
 - [x] Separar entregas completas do estoque digital por linhas com --
+- [x] Fixar a vitrine em quatro produtos por fileira e compactar os cards no celular

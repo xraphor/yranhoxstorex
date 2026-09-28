@@ -96,7 +96,7 @@ function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-10">
+      <section className="mx-auto max-w-7xl overflow-x-hidden px-2 py-8 sm:px-4 sm:py-10">
         <div className="mb-6 flex flex-wrap gap-2">
           <Button
             size="sm"
@@ -118,9 +118,9 @@ function Home() {
         </div>
 
         {isLoading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-80 rounded-xl" />
+              <Skeleton key={i} className="aspect-[3/5] min-w-0 rounded-md" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -132,7 +132,7 @@ function Home() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-4">
             {filtered.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
