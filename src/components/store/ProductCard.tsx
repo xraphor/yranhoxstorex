@@ -30,7 +30,9 @@ export function ProductCard({ product }: { product: ProductRow }) {
               loading="lazy"
               className="w-full transition-transform duration-300 group-hover:scale-105"
             />
-          ) : null}
+          ) : (
+            <div className="grid-lines aspect-square w-full bg-surface-2" />
+          )}
         </div>
         <div className="absolute top-2 left-2 max-w-[calc(100%-1rem)] sm:top-2.5 sm:left-2.5">
           <Badge variant="outline" className="h-4 max-w-full truncate rounded-sm border-primary/40 bg-background/85 px-1 text-[7px] leading-none text-primary sm:h-5 sm:px-1.5 sm:text-[9px]">
