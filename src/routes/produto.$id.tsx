@@ -117,12 +117,12 @@ function ProductPage() {
     <StoreShell>
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 lg:grid-cols-2">
         <div className="space-y-3">
-          <div className="panel grid-lines aspect-[4/3] overflow-hidden">
+          <div className="panel w-full overflow-hidden">
             {gallery[activeImage] ? (
               <img
                 src={gallery[activeImage]}
                 alt={product.title}
-                className="size-full object-contain"
+                className="w-full"
               />
             ) : null}
           </div>

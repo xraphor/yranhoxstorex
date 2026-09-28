@@ -22,13 +22,13 @@ export function ProductCard({ product }: { product: ProductRow }) {
   return (
     <article className="group flex min-w-0 flex-col overflow-hidden rounded-md border border-border/70 bg-card shadow-sm transition-colors hover:border-primary/50">
       <Link to="/produto/$id" params={{ id: product.id }} className="relative block p-1 sm:p-1.5">
-        <div className="grid-lines aspect-square w-full overflow-hidden rounded-md bg-surface-2">
+        <div className="w-full overflow-hidden rounded-md">
           {product.image_url ? (
             <img
               src={product.image_url}
               alt={product.title}
               loading="lazy"
-              className="size-full object-contain transition-transform duration-300 group-hover:scale-105"
+              className="w-full transition-transform duration-300 group-hover:scale-105"
             />
           ) : null}
         </div>
