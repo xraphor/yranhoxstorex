@@ -133,6 +133,9 @@ function AdminPage() {
             <TabsTrigger value="reviews">Comentários</TabsTrigger>
             <TabsTrigger value="settings">Configurações</TabsTrigger>
           </TabsList>
+          <TabsContent value="copilot" className="pt-5">
+            <AdminAiPanel />
+          </TabsContent>
           <TabsContent value="dashboard" className="pt-5">
             <Dashboard />
           </TabsContent>
