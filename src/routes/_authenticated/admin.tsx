@@ -123,8 +123,9 @@ function AdminPage() {
     <StoreShell>
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-10">
         <h1 className="font-display text-xl">Painel administrativo</h1>
-        <Tabs defaultValue="dashboard">
+        <Tabs defaultValue="copilot">
           <TabsList className="flex-wrap">
+            <TabsTrigger value="copilot">Copiloto IA</TabsTrigger>
             <TabsTrigger value="dashboard">Visão geral</TabsTrigger>
             <TabsTrigger value="products">Produtos</TabsTrigger>
             <TabsTrigger value="orders">Pedidos</TabsTrigger>
