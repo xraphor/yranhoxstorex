@@ -1,0 +1,518 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { ADMIN_EMAIL } from "@/lib/store";
+
+const MessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().min(1).max(4000),
+});
+
+const InputSchema = z.object({
+  messages: z.array(MessageSchema).min(1).max(40),
+});
+
+const SYSTEM_PROMPT = `Você é o Copiloto da yRanhox Store X, o assistente administrativo do dono da loja (loja de produtos digitais: contas, keys, scripts, itens de jogos, métodos).
+
+Você obedece às ordens do dono e executa de verdade usando as ferramentas disponíveis.
+Regras:
+- Fale sempre em português do Brasil, direto e amigável.
+- Quando o dono pedir para criar, alterar ou apagar algo, use a ferramenta correspondente imediatamente, sem pedir confirmação para tarefas simples de conteúdo (produtos, estoque, categorias, avisos, comentários).
+- Pergunte antes APENAS quando a ordem mexe em dinheiro ou é destrutiva sem volta: aprovar pedido, excluir produto com vendas, apagar muitas coisas de uma vez.
+- Se faltar um dado obrigatório (ex: preço), escolha um valor sensato e diga o que escolheu, ou pergunte em uma única frase curta.
+- Preços sempre em reais (ex: 49.90). Você converte para centavos internamente pelas ferramentas.
+- Estoque digital: cada entrega é um item completo (pode ter várias linhas, como login e senha juntos).
+- Você também escreve conteúdo: descrições vendedoras, títulos, anúncios para Discord/WhatsApp, tutoriais de ativação, termos de garantia, respostas de suporte. Nesses casos entregue o texto pronto.
+- Ao terminar uma ação, responda curto confirmando o que foi feito (1 a 3 frases). Use markdown simples quando ajudar.
+- Nunca invente que fez algo: só afirme depois que a ferramenta retornar sucesso.`;
+
+type Json = Record<string, unknown>;
+
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "listar_produtos",
+      description: "Lista os produtos da loja com id, título, categoria, preço e estoque.",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "criar_produto",
+      description: "Cria um novo produto na loja.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          category: { type: "string" },
+          price_brl: { type: "number" },
+          original_price_brl: { type: "number" },
+          tags: { type: "array", items: { type: "string" } },
+          warranty: { type: "string" },
+          active: { type: "boolean" },
+          featured: { type: "boolean" },
+        },
+        required: ["title", "price_brl"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "atualizar_produto",
+      description: "Atualiza campos de um produto existente.",
+      parameters: {
+        type: "object",
+        properties: {
+          product_id: { type: "string" },
+          title: { type: "string" },
+          description: { type: "string" },
+          category: { type: "string" },
+          price_brl: { type: "number" },
+          original_price_brl: { type: "number" },
+          tags: { type: "array", items: { type: "string" } },
+          warranty: { type: "string" },
+          active: { type: "boolean" },
+          featured: { type: "boolean" },
+        },
+        required: ["product_id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "excluir_produto",
+      description: "Exclui um produto da loja.",
+      parameters: {
+        type: "object",
+        properties: { product_id: { type: "string" } },
+        required: ["product_id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "adicionar_estoque",
+      description:
+        "Adiciona entregas ao estoque digital de um produto. Cada string da lista é uma entrega completa (pode conter várias linhas).",
+      parameters: {
+        type: "object",
+        properties: {
+          product_id: { type: "string" },
+          items: { type: "array", items: { type: "string" } },
+        },
+        required: ["product_id", "items"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "listar_categorias",
+      description: "Lista as categorias da loja.",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "criar_categoria",
+      description: "Cria uma categoria nova na vitrine.",
+      parameters: {
+        type: "object",
+        properties: { name: { type: "string" }, sort_order: { type: "number" } },
+        required: ["name"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "excluir_categoria",
+      description: "Exclui uma categoria pelo nome.",
+      parameters: {
+        type: "object",
+        properties: { name: { type: "string" } },
+        required: ["name"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ler_configuracoes",
+      description: "Lê as configurações da loja (banner, aviso do topo, suporte).",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "atualizar_configuracoes",
+      description: "Atualiza banner, aviso do topo e link de suporte da loja.",
+      parameters: {
+        type: "object",
+        properties: {
+          banner_title: { type: "string" },
+          banner_subtitle: { type: "string" },
+          top_notice: { type: "string" },
+          support_link: { type: "string" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "publicar_comentario",
+      description:
+        "Publica um comentário na loja com nome e nota escolhidos. Sempre aparece marcado como publicado pela loja.",
+      parameters: {
+        type: "object",
+        properties: {
+          product_id: { type: "string", description: "Vazio para aparecer em todos os produtos." },
+          author_name: { type: "string" },
+          rating: { type: "number" },
+          message: { type: "string" },
+        },
+        required: ["author_name", "message"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "listar_pedidos",
+      description: "Lista pedidos recentes, opcionalmente filtrando por situação.",
+      parameters: {
+        type: "object",
+        properties: {
+          status: { type: "string", enum: ["pending", "awaiting_confirmation", "paid", "cancelled"] },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "aprovar_pedido",
+      description: "Aprova um pedido pago e libera a entrega automática do produto.",
+      parameters: {
+        type: "object",
+        properties: { order_id: { type: "string" } },
+        required: ["order_id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "relatorio_vendas",
+      description: "Resumo de faturamento e vendas dos últimos dias.",
+      parameters: {
+        type: "object",
+        properties: { dias: { type: "number" } },
+        additionalProperties: false,
+      },
+    },
+  },
+] as const;
+
+function brlToCents(value: unknown) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.round(n * 100) : 0;
+}
+
+async function runTool(name: string, args: Json) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const productPayload = () => {
+    const payload: Json = {};
+    if (typeof args["title"] === "string") payload["title"] = args["title"];
+    if (typeof args["description"] === "string") payload["description"] = args["description"];
+    if (typeof args["category"] === "string") payload["category"] = args["category"];
+    if (args["price_brl"] !== undefined) payload["price_cents"] = brlToCents(args["price_brl"]);
+    if (args["original_price_brl"] !== undefined)
+      payload["original_price_cents"] = brlToCents(args["original_price_brl"]);
+    if (Array.isArray(args["tags"])) payload["tags"] = args["tags"];
+    if (typeof args["warranty"] === "string") payload["warranty"] = args["warranty"];
+    if (typeof args["active"] === "boolean") payload["active"] = args["active"];
+    if (typeof args["featured"] === "boolean") payload["featured"] = args["featured"];
+    return payload;
+  };
+
+  switch (name) {
+    case "listar_produtos": {
+      const { data, error } = await supabaseAdmin
+        .from("products")
+        .select("id,title,category,price_cents,stock_count,active,featured")
+        .order("created_at", { ascending: false })
+        .limit(60);
+      if (error) throw error;
+      return data;
+    }
+    case "criar_produto": {
+      const payload = productPayload();
+      if (!payload["description"]) payload["description"] = "";
+      const { data, error } = await supabaseAdmin
+        .from("products")
+        .insert(payload as never)
+        .select("id,title,price_cents")
+        .single();
+      if (error) throw error;
+      return data;
+    }
+    case "atualizar_produto": {
+      const { data, error } = await supabaseAdmin
+        .from("products")
+        .update(productPayload() as never)
+        .eq("id", String(args["product_id"]))
+        .select("id,title,price_cents,active")
+        .single();
+      if (error) throw error;
+      return data;
+    }
+    case "excluir_produto": {
+      const { error } = await supabaseAdmin
+        .from("products")
+        .delete()
+        .eq("id", String(args["product_id"]));
+      if (error) throw error;
+      return { ok: true };
+    }
+    case "adicionar_estoque": {
+      const items = Array.isArray(args["items"]) ? (args["items"] as string[]) : [];
+      const rows = items
+        .map((content) => String(content).trim())
+        .filter(Boolean)
+        .map((content) => ({ product_id: String(args["product_id"]), content }));
+      if (!rows.length) return { ok: false, motivo: "nenhuma entrega informada" };
+      const { error } = await supabaseAdmin.from("product_stock_items").insert(rows);
+      if (error) throw error;
+      return { ok: true, adicionados: rows.length };
+    }
+    case "listar_categorias": {
+      const { data, error } = await supabaseAdmin
+        .from("categories")
+        .select("id,name,sort_order")
+        .order("sort_order");
+      if (error) throw error;
+      return data;
+    }
+    case "criar_categoria": {
+      const { data, error } = await supabaseAdmin
+        .from("categories")
+        .insert({
+          name: String(args["name"]),
+          ...(args["sort_order"] !== undefined ? { sort_order: Number(args["sort_order"]) } : {}),
+        })
+        .select("id,name")
+        .single();
+      if (error) throw error;
+      return data;
+    }
+    case "excluir_categoria": {
+      const { error } = await supabaseAdmin
+        .from("categories")
+        .delete()
+        .eq("name", String(args["name"]));
+      if (error) throw error;
+      return { ok: true };
+    }
+    case "ler_configuracoes": {
+      const { data, error } = await supabaseAdmin
+        .from("store_settings")
+        .select("banner_title,banner_subtitle,top_notice,support_link")
+        .eq("id", 1)
+        .single();
+      if (error) throw error;
+      return data;
+    }
+    case "atualizar_configuracoes": {
+      const payload: Json = {};
+      for (const key of ["banner_title", "banner_subtitle", "top_notice", "support_link"]) {
+        if (typeof args[key] === "string") payload[key] = args[key];
+      }
+      if (!Object.keys(payload).length) return { ok: false, motivo: "nada para atualizar" };
+      const { data, error } = await supabaseAdmin
+        .from("store_settings")
+        .update(payload as never)
+        .eq("id", 1)
+        .select("banner_title,banner_subtitle,top_notice,support_link")
+        .single();
+      if (error) throw error;
+      return data;
+    }
+    case "publicar_comentario": {
+      const rating = Math.min(5, Math.max(1, Math.round(Number(args["rating"]) || 5)));
+      const { data, error } = await supabaseAdmin
+        .from("product_reviews")
+        .insert({
+          product_id: args["product_id"] ? String(args["product_id"]) : null,
+          author_name: String(args["author_name"]).slice(0, 80),
+          message: String(args["message"]),
+          rating,
+          is_official: true,
+        })
+        .select("id,author_name,rating")
+        .single();
+      if (error) throw error;
+      return data;
+    }
+    case "listar_pedidos": {
+      let query = supabaseAdmin
+        .from("orders")
+        .select("id,buyer_email,status,total_cents,created_at,paid_at")
+        .order("created_at", { ascending: false })
+        .limit(40);
+      if (typeof args["status"] === "string") query = query.eq("status", args["status"] as string);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    }
+    case "aprovar_pedido": {
+      const { error } = await supabaseAdmin.rpc("approve_order", {
+        p_order_id: String(args["order_id"]),
+      });
+      if (error) throw error;
+      return { ok: true };
+    }
+    case "relatorio_vendas": {
+      const dias = Number(args["dias"]) || 30;
+      const since = new Date(Date.now() - dias * 86400000).toISOString();
+      const { data, error } = await supabaseAdmin
+        .from("orders")
+        .select("total_cents,status,paid_at")
+        .gte("created_at", since);
+      if (error) throw error;
+      const paid = (data ?? []).filter((o) => o.status === "paid");
+      const totalCents = paid.reduce((acc, o) => acc + o.total_cents, 0);
+      return {
+        dias,
+        pedidos_pagos: paid.length,
+        faturamento_reais: (totalCents / 100).toFixed(2),
+        pendentes: (data ?? []).filter(
+          (o) => o.status === "pending" || o.status === "awaiting_confirmation",
+        ).length,
+      };
+    }
+    default:
+      return { ok: false, motivo: "ferramenta desconhecida" };
+  }
+}
+
+type ChatMessage = {
+  role: "system" | "user" | "assistant" | "tool";
+  content?: string | null;
+  tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
+  tool_call_id?: string;
+};
+
+export const adminAiChat = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => InputSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const email = String(context.claims["email"] ?? "").toLowerCase();
+    if (email !== ADMIN_EMAIL) {
+      throw new Error("Acesso não autorizado");
+    }
+
+    const openaiKey = process.env["OPENAI_API_KEY"];
+    const lovableKey = process.env["LOVABLE_API_KEY"];
+    const useOwnKey = Boolean(openaiKey);
+    const apiKey = openaiKey ?? lovableKey;
+    if (!apiKey) {
+      return { reply: "O assistente está sem chave de acesso configurada.", actions: [] as string[] };
+    }
+    const url = useOwnKey
+      ? "https://api.openai.com/v1/chat/completions"
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+    const model = useOwnKey ? "gpt-4o" : "openai/gpt-6-astra";
+
+    const messages: ChatMessage[] = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...data.messages.map((m) => ({ role: m.role, content: m.content }) as ChatMessage),
+    ];
+    const actions: string[] = [];
+
+    for (let round = 0; round < 8; round++) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          ...(useOwnKey ? {} : { "X-Lovable-AIG-SDK": "fetch" }),
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          tools,
+          tool_choice: "auto",
+          ...(useOwnKey ? {} : { reasoning_effort: "low" }),
+        }),
+      });
+
+      if (!response.ok) {
+        const status = response.status;
+        const detail = await response.text();
+        console.error("[admin-ai]", status, detail.slice(0, 500));
+        if (status === 401) return { reply: "A chave de acesso da IA foi recusada.", actions };
+        if (status === 429)
+          return { reply: "Muitas mensagens seguidas. Aguarde alguns segundos.", actions };
+        if (status === 402)
+          return { reply: "Os créditos da IA acabaram. Adicione créditos para continuar.", actions };
+        return { reply: "A IA não respondeu agora. Tente de novo.", actions };
+      }
+
+      const payload = (await response.json()) as {
+        choices?: { message?: ChatMessage }[];
+      };
+      const message = payload.choices?.[0]?.message;
+      if (!message) return { reply: "A IA não respondeu agora. Tente de novo.", actions };
+
+      if (message.tool_calls?.length) {
+        messages.push({
+          role: "assistant",
+          content: message.content ?? "",
+          tool_calls: message.tool_calls,
+        });
+        for (const call of message.tool_calls) {
+          let result: unknown;
+          try {
+            const args = call.function.arguments ? (JSON.parse(call.function.arguments) as Json) : {};
+            result = await runTool(call.function.name, args);
+            actions.push(call.function.name);
+          } catch (error) {
+            result = {
+              erro: error instanceof Error ? error.message : "falha ao executar",
+            };
+          }
+          messages.push({
+            role: "tool",
+            tool_call_id: call.id,
+            content: JSON.stringify(result).slice(0, 8000),
+          });
+        }
+        continue;
+      }
+
+      return { reply: message.content?.trim() || "Feito!", actions };
+    }
+
+    return { reply: "A tarefa ficou longa demais. Tente dividir o pedido.", actions };
+  });
