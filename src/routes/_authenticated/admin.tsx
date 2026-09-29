@@ -41,6 +41,7 @@ import {
 import { formatBRL, ORDER_STATUS } from "@/lib/store";
 import { useCategories } from "@/hooks/useCategories";
 import { CategoriesPanel, ReviewsPanel } from "@/components/store/AdminCatalogPanels";
+import { AdminAiPanel } from "@/components/store/AdminAiPanel";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
