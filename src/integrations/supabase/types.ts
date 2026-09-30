@@ -350,6 +350,7 @@ export type Database = {
       }
       store_settings: {
         Row: {
+          accent: string
           banner_subtitle: string
           banner_title: string
           id: number
@@ -361,6 +362,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accent?: string
           banner_subtitle?: string
           banner_title?: string
           id?: number
@@ -372,6 +374,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accent?: string
           banner_subtitle?: string
           banner_title?: string
           id?: number

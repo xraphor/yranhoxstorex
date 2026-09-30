@@ -1,0 +1,1 @@
+alter table public.store_settings add column if not exists accent text not null default 'purple';

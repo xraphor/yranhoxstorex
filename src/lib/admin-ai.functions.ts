@@ -152,7 +152,7 @@ const tools = [
     type: "function",
     function: {
       name: "ler_configuracoes",
-      description: "Lê as configurações da loja (banner, aviso do topo, suporte).",
+      description: "Lê as configurações da loja (banner, aviso do topo, suporte, tema).",
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
   },
@@ -169,6 +169,22 @@ const tools = [
           top_notice: { type: "string" },
           support_link: { type: "string" },
         },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mudar_tema",
+      description:
+        "Publica um novo tema de cores para TODA a loja (vale para todos os visitantes). Opções: purple (Roxo Neon), cyan (Ciano Cyber), emerald (Verde Esmeralda), orange (Laranja Vulcão). Escolha a mais próxima do que o dono descrever.",
+      parameters: {
+        type: "object",
+        properties: {
+          accent: { type: "string", enum: ["purple", "cyan", "emerald", "orange"] },
+        },
+        required: ["accent"],
         additionalProperties: false,
       },
     },
@@ -416,12 +432,118 @@ async function runTool(name: string, args: Json) {
   }
 }
 
-type ChatMessage = {
-  role: "system" | "user" | "assistant" | "tool";
-  content?: string | null;
-  tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
-  tool_call_id?: string;
-};
+// Claude via Lovable AI Gateway (API nativa /v1/messages).
+// Não depende de chave própria da OpenAI/Anthropic — usa a chave embutida do projeto.
+const CLAUDE_URL = "https://ai.gateway.lovable.dev/v1/messages";
+const CLAUDE_MODEL = "anthropic/claude-sonnet-5";
+
+const claudeTools = tools.map((t) => ({
+  name: t.function.name,
+  description: t.function.description,
+  input_schema: t.function.parameters,
+}));
+
+type ClaudeBlock =
+  | { type: "text"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: Json };
+
+type ClaudeMessage = { role: "user" | "assistant"; content: string | ClaudeBlock[] };
+
+async function callClaude(apiKey: string, messages: ClaudeMessage[]) {
+  const response = await fetch(CLAUDE_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-Lovable-AIG-SDK": "fetch",
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: 16000,
+      system: SYSTEM_PROMPT,
+      messages,
+      tools: claudeTools,
+      tool_choice: { type: "auto" },
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const status = response.status;
+    const detail = await response.text();
+    console.error("[admin-ai]", status, detail.slice(0, 500));
+    return { error: status as number, detail };
+  }
+
+  // Consome o stream SSE e acumula o resultado final (texto + chamadas de ferramenta).
+  const blocks: ClaudeBlock[] = [];
+  let buffer = "";
+  const body = response.body;
+  if (!body) return { error: 502 as number, detail: "sem corpo de resposta" };
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+
+  const handleEvent = (raw: string) => {
+    const line = raw.split("\n").find((l) => l.startsWith("data:"));
+    if (!line) return;
+    const data = line.slice(5).trim();
+    if (!data || data === "[DONE]") return;
+    let event: {
+      type: string;
+      index?: number;
+      content_block?: { type: string; id?: string; name?: string };
+      delta?: { type: string; text?: string; partial_json?: string };
+    };
+    try {
+      event = JSON.parse(data);
+    } catch {
+      return;
+    }
+    if (event.type === "content_block_start" && event.content_block) {
+      const i = event.index ?? blocks.length;
+      if (event.content_block.type === "text") blocks[i] = { type: "text", text: "" };
+      if (event.content_block.type === "tool_use")
+        blocks[i] = { type: "tool_use", id: event.content_block.id ?? "", name: event.content_block.name ?? "", input: {} };
+    }
+    if (event.type === "content_block_delta" && event.delta) {
+      const i = event.index ?? 0;
+      const block = blocks[i];
+      if (!block) return;
+      if (event.delta.type === "text_delta" && block.type === "text")
+        block.text += event.delta.text ?? "";
+      if (event.delta.type === "input_json_delta" && block.type === "tool_use") {
+        // acumula o JSON parcial num campo temporário
+        const acc = (block as unknown as { __json?: string });
+        acc.__json = (acc.__json ?? "") + (event.delta.partial_json ?? "");
+      }
+    }
+  };
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() ?? "";
+    for (const part of parts) handleEvent(part);
+  }
+  if (buffer.trim()) handleEvent(buffer);
+
+  // Finaliza os inputs das ferramentas
+  for (const block of blocks) {
+    if (block.type === "tool_use") {
+      const acc = (block as unknown as { __json?: string });
+      try {
+        block.input = acc.__json ? (JSON.parse(acc.__json) as Json) : {};
+      } catch {
+        block.input = {};
+      }
+      delete (block as unknown as { __json?: string }).__json;
+    }
+  }
+
+  return { blocks };
+}
 
 export const adminAiChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -432,90 +554,63 @@ export const adminAiChat = createServerFn({ method: "POST" })
       throw new Error("Acesso não autorizado");
     }
 
-    const openaiKey = process.env["OPENAI_API_KEY"];
-    const lovableKey = process.env["LOVABLE_API_KEY"];
-    const useOwnKey = Boolean(openaiKey);
-    const apiKey = openaiKey ?? lovableKey;
+    const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) {
       return { reply: "O assistente está sem chave de acesso configurada.", actions: [] as string[] };
     }
-    const url = useOwnKey
-      ? "https://api.openai.com/v1/chat/completions"
-      : "https://ai.gateway.lovable.dev/v1/chat/completions";
-    const model = useOwnKey ? "gpt-4o" : "openai/gpt-6-astra";
 
-    const messages: ChatMessage[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...data.messages.map((m) => ({ role: m.role, content: m.content }) as ChatMessage),
-    ];
+    const messages: ClaudeMessage[] = data.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
     const actions: string[] = [];
 
     for (let round = 0; round < 8; round++) {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          ...(useOwnKey ? {} : { "X-Lovable-AIG-SDK": "fetch" }),
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          tools,
-          tool_choice: "auto",
-        }),
-      });
+      const result = await callClaude(apiKey, messages);
 
-      if (!response.ok) {
-        const status = response.status;
-        const detail = await response.text();
-        console.error("[admin-ai]", status, detail.slice(0, 500));
+      if ("error" in result) {
+        const status = result.error;
         if (status === 401) return { reply: "A chave de acesso da IA foi recusada.", actions };
-        if (detail.includes("insufficient_quota") || detail.includes("credit_balance_exhausted"))
+        if (status === 402 || status === 403)
           return {
-            reply: "Sua conta da OpenAI está sem saldo. Adicione créditos em platform.openai.com/settings/organization/billing e tente de novo.",
+            reply: "Os créditos de IA da loja acabaram por agora. Eles renovam todo mês — tente de novo em breve.",
             actions,
           };
         if (status === 429)
-          return { reply: "Muitas mensagens seguidas. Aguarde alguns segundos.", actions };
-        if (status === 402)
-          return { reply: "Os créditos da IA acabaram. Adicione créditos para continuar.", actions };
+          return { reply: "Muitas mensagens seguidas. Aguarde alguns segundos e tente de novo.", actions };
         return { reply: "A IA não respondeu agora. Tente de novo.", actions };
       }
 
-      const payload = (await response.json()) as {
-        choices?: { message?: ChatMessage }[];
-      };
-      const message = payload.choices?.[0]?.message;
-      if (!message) return { reply: "A IA não respondeu agora. Tente de novo.", actions };
+      const blocks = result.blocks;
+      const toolUses = blocks.filter((b): b is Extract<ClaudeBlock, { type: "tool_use" }> => b.type === "tool_use");
 
-      if (message.tool_calls?.length) {
-        messages.push({
-          role: "assistant",
-          content: message.content ?? "",
-          tool_calls: message.tool_calls,
-        });
-        for (const call of message.tool_calls) {
-          let result: unknown;
+      if (toolUses.length) {
+        messages.push({ role: "assistant", content: blocks });
+        const toolResults: { type: "tool_result"; tool_use_id: string; content: string }[] = [];
+        for (const call of toolUses) {
+          let toolResult: unknown;
           try {
-            const args = call.function.arguments ? (JSON.parse(call.function.arguments) as Json) : {};
-            result = await runTool(call.function.name, args);
-            actions.push(call.function.name);
+            toolResult = await runTool(call.name, call.input);
+            actions.push(call.name);
           } catch (error) {
-            result = {
-              erro: error instanceof Error ? error.message : "falha ao executar",
-            };
+            toolResult = { erro: error instanceof Error ? error.message : "falha ao executar" };
           }
-          messages.push({
-            role: "tool",
-            tool_call_id: call.id,
-            content: JSON.stringify(result).slice(0, 8000),
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: call.id,
+            content: JSON.stringify(toolResult).slice(0, 8000),
           });
         }
+        messages.push({ role: "user", content: toolResults as unknown as ClaudeBlock[] });
         continue;
       }
 
-      return { reply: message.content?.trim() || "Feito!", actions };
+      const text = blocks
+        .filter((b): b is Extract<ClaudeBlock, { type: "text" }> => b.type === "text")
+        .map((b) => b.text)
+        .join("")
+        .trim();
+      return { reply: text || "Feito!", actions };
     }
 
     return { reply: "A tarefa ficou longa demais. Tente dividir o pedido.", actions };
