@@ -118,7 +118,7 @@ function Home() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-4 gap-1.5 sm:gap-4">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="aspect-[3/5] min-w-0 rounded-md" />
             ))}
@@ -132,7 +132,7 @@ function Home() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-1.5 sm:gap-4">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
             {filtered.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

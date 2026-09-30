@@ -463,7 +463,6 @@ export const adminAiChat = createServerFn({ method: "POST" })
           messages,
           tools,
           tool_choice: "auto",
-          ...(useOwnKey ? {} : { reasoning_effort: "low" }),
         }),
       });
 
@@ -472,6 +471,11 @@ export const adminAiChat = createServerFn({ method: "POST" })
         const detail = await response.text();
         console.error("[admin-ai]", status, detail.slice(0, 500));
         if (status === 401) return { reply: "A chave de acesso da IA foi recusada.", actions };
+        if (detail.includes("insufficient_quota") || detail.includes("credit_balance_exhausted"))
+          return {
+            reply: "Sua conta da OpenAI está sem saldo. Adicione créditos em platform.openai.com/settings/organization/billing e tente de novo.",
+            actions,
+          };
         if (status === 429)
           return { reply: "Muitas mensagens seguidas. Aguarde alguns segundos.", actions };
         if (status === 402)
