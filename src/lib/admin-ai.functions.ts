@@ -152,7 +152,7 @@ const tools = [
     type: "function",
     function: {
       name: "ler_configuracoes",
-      description: "Lê as configurações da loja (banner, aviso do topo, suporte).",
+      description: "Lê as configurações da loja (banner, aviso do topo, suporte, tema).",
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
   },
@@ -169,6 +169,22 @@ const tools = [
           top_notice: { type: "string" },
           support_link: { type: "string" },
         },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mudar_tema",
+      description:
+        "Publica um novo tema de cores para TODA a loja (vale para todos os visitantes). Opções: purple (Roxo Neon), cyan (Ciano Cyber), emerald (Verde Esmeralda), orange (Laranja Vulcão). Escolha a mais próxima do que o dono descrever.",
+      parameters: {
+        type: "object",
+        properties: {
+          accent: { type: "string", enum: ["purple", "cyan", "emerald", "orange"] },
+        },
+        required: ["accent"],
         additionalProperties: false,
       },
     },
