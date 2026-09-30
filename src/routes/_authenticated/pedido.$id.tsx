@@ -183,6 +183,10 @@ function OrderPage() {
                 ) : null}
               </div>
             ))}
+            <PixSupportChat
+              productTitle={data?.items[0]?.product_title}
+              totalBrl={formatBRL(order.total_cents)}
+            />
             <Button asChild variant="outline">
               <Link to="/meus-pedidos">Ver meus pedidos</Link>
             </Button>
@@ -240,10 +244,6 @@ function OrderPage() {
                   <p className="mt-2 text-sm font-semibold text-warning">Aviso de pagamento enviado</p>
                   <p className="mt-1 text-xs text-muted-foreground">Estamos confirmando o Pix. Esta página atualiza automaticamente.</p>
                 </div>
-                <PixSupportChat
-                  productTitle={data?.items[0]?.product_title}
-                  totalBrl={formatBRL(order.total_cents)}
-                />
               </div>
             ) : (
               <AlertDialog>
