@@ -463,7 +463,6 @@ export const adminAiChat = createServerFn({ method: "POST" })
           messages,
           tools,
           tool_choice: "auto",
-          ...(useOwnKey ? {} : { reasoning_effort: "none" }),
         }),
       });
 
