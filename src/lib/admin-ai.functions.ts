@@ -445,7 +445,9 @@ const claudeTools = tools.map((t) => ({
 
 type ClaudeBlock =
   | { type: "text"; text: string }
-  | { type: "tool_use"; id: string; name: string; input: Json };
+  | { type: "tool_use"; id: string; name: string; input: Json }
+  | { type: "thinking"; thinking: string; signature: string }
+  | { type: "redacted_thinking"; data: string };
 
 type ClaudeMessage = { role: "user" | "assistant"; content: string | ClaudeBlock[] };
 
@@ -475,8 +477,10 @@ async function callClaude(apiKey: string, messages: ClaudeMessage[]) {
     return { error: status as number, detail };
   }
 
-  // Consome o stream SSE e acumula o resultado final (texto + chamadas de ferramenta).
-  const blocks: ClaudeBlock[] = [];
+  // Consome o stream SSE e acumula o resultado final (texto, raciocínio e ferramentas).
+  const blocks: (ClaudeBlock | undefined)[] = [];
+  const jsonAcc: Record<number, string> = {};
+  let stopReason = "";
   let buffer = "";
   const body = response.body;
   if (!body) return { error: 502 as number, detail: "sem corpo de resposta" };
@@ -491,32 +495,41 @@ async function callClaude(apiKey: string, messages: ClaudeMessage[]) {
     let event: {
       type: string;
       index?: number;
-      content_block?: { type: string; id?: string; name?: string };
-      delta?: { type: string; text?: string; partial_json?: string };
+      content_block?: { type: string; id?: string; name?: string; data?: string };
+      delta?: {
+        type?: string;
+        text?: string;
+        partial_json?: string;
+        thinking?: string;
+        signature?: string;
+        stop_reason?: string;
+      };
     };
     try {
       event = JSON.parse(data);
     } catch {
       return;
     }
+    const i = event.index ?? 0;
     if (event.type === "content_block_start" && event.content_block) {
-      const i = event.index ?? blocks.length;
-      if (event.content_block.type === "text") blocks[i] = { type: "text", text: "" };
-      if (event.content_block.type === "tool_use")
-        blocks[i] = { type: "tool_use", id: event.content_block.id ?? "", name: event.content_block.name ?? "", input: {} };
+      const cb = event.content_block;
+      if (cb.type === "text") blocks[i] = { type: "text", text: "" };
+      else if (cb.type === "tool_use")
+        blocks[i] = { type: "tool_use", id: cb.id ?? "", name: cb.name ?? "", input: {} };
+      else if (cb.type === "thinking") blocks[i] = { type: "thinking", thinking: "", signature: "" };
+      else if (cb.type === "redacted_thinking") blocks[i] = { type: "redacted_thinking", data: cb.data ?? "" };
     }
     if (event.type === "content_block_delta" && event.delta) {
-      const i = event.index ?? 0;
       const block = blocks[i];
       if (!block) return;
-      if (event.delta.type === "text_delta" && block.type === "text")
-        block.text += event.delta.text ?? "";
-      if (event.delta.type === "input_json_delta" && block.type === "tool_use") {
-        // acumula o JSON parcial num campo temporário
-        const acc = (block as unknown as { __json?: string });
-        acc.__json = (acc.__json ?? "") + (event.delta.partial_json ?? "");
-      }
+      const d = event.delta;
+      if (d.type === "text_delta" && block.type === "text") block.text += d.text ?? "";
+      if (d.type === "input_json_delta" && block.type === "tool_use")
+        jsonAcc[i] = (jsonAcc[i] ?? "") + (d.partial_json ?? "");
+      if (d.type === "thinking_delta" && block.type === "thinking") block.thinking += d.thinking ?? "";
+      if (d.type === "signature_delta" && block.type === "thinking") block.signature += d.signature ?? "";
     }
+    if (event.type === "message_delta" && event.delta?.stop_reason) stopReason = event.delta.stop_reason;
   };
 
   for (;;) {
@@ -529,20 +542,21 @@ async function callClaude(apiKey: string, messages: ClaudeMessage[]) {
   }
   if (buffer.trim()) handleEvent(buffer);
 
-  // Finaliza os inputs das ferramentas
-  for (const block of blocks) {
+  // Finaliza os inputs das ferramentas e remove posições vazias.
+  const finalBlocks: ClaudeBlock[] = [];
+  blocks.forEach((block, i) => {
+    if (!block) return;
     if (block.type === "tool_use") {
-      const acc = (block as unknown as { __json?: string });
       try {
-        block.input = acc.__json ? (JSON.parse(acc.__json) as Json) : {};
+        block.input = jsonAcc[i] ? (JSON.parse(jsonAcc[i]) as Json) : {};
       } catch {
         block.input = {};
       }
-      delete (block as unknown as { __json?: string }).__json;
     }
-  }
+    finalBlocks.push(block);
+  });
 
-  return { blocks };
+  return { blocks: finalBlocks, stopReason };
 }
 
 export const adminAiChat = createServerFn({ method: "POST" })
