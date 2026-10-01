@@ -596,6 +596,8 @@ export const adminAiChat = createServerFn({ method: "POST" })
       }
 
       const blocks = result.blocks;
+      if (result.stopReason === "refusal")
+        return { reply: "A IA recusou esse pedido.", actions };
       const toolUses = blocks.filter((b): b is Extract<ClaudeBlock, { type: "tool_use" }> => b.type === "tool_use");
 
       if (toolUses.length) {
