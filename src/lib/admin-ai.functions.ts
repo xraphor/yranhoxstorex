@@ -350,10 +350,21 @@ async function runTool(name: string, args: Json) {
       if (error) throw error;
       return { ok: true };
     }
+    case "mudar_tema": {
+      const accent = String(args["accent"]);
+      if (!["purple", "cyan", "emerald", "orange"].includes(accent))
+        return { ok: false, motivo: "tema inválido" };
+      const { error } = await supabaseAdmin
+        .from("store_settings")
+        .update({ accent } as never)
+        .eq("id", 1);
+      if (error) throw error;
+      return { ok: true, tema: accent };
+    }
     case "ler_configuracoes": {
       const { data, error } = await supabaseAdmin
         .from("store_settings")
-        .select("banner_title,banner_subtitle,top_notice,support_link")
+        .select("banner_title,banner_subtitle,top_notice,support_link,accent")
         .eq("id", 1)
         .single();
       if (error) throw error;
