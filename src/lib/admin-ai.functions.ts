@@ -192,6 +192,27 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "criar_tema",
+      description:
+        "Cria e publica um tema TOTALMENTE personalizado para toda a loja (vale para todos os visitantes). Use quando o dono descrever um estilo/cor que não seja exatamente uma das 4 opções prontas. Cores em hex #RRGGBB. Mantenha bom contraste: fundo e cards escuros com destaque neon vibrante, a menos que o dono peça tema claro.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Nome do tema, ex: Cyberpunk Amarelo" },
+          primary: { type: "string", description: "Cor de destaque neon (botões, preços, brilho), ex: #facc15" },
+          background: { type: "string", description: "Cor de fundo da página, ex: #0b0b10" },
+          card: { type: "string", description: "Cor dos cards e painéis, ex: #16161f" },
+          border: { type: "string", description: "Cor das bordas (opcional)" },
+          foreground: { type: "string", description: "Cor do texto (opcional)" },
+        },
+        required: ["name", "primary", "background", "card"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "publicar_comentario",
       description:
         "Publica um comentário na loja com nome e nota escolhidos. Sempre aparece marcado como publicado pela loja.",
