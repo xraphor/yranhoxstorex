@@ -178,7 +178,7 @@ const tools = [
     function: {
       name: "mudar_tema",
       description:
-        "Publica um novo tema de cores para TODA a loja (vale para todos os visitantes). Opções: purple (Roxo Neon), cyan (Ciano Cyber), emerald (Verde Esmeralda), orange (Laranja Vulcão). Escolha a mais próxima do que o dono descrever.",
+        "Publica um dos 4 temas prontos para TODA a loja: purple (Roxo Neon), cyan (Ciano Cyber), emerald (Verde Esmeralda), orange (Laranja Vulcão). Use só quando o dono pedir exatamente uma dessas cores; para qualquer outro estilo use criar_tema.",
       parameters: {
         type: "object",
         properties: {
@@ -377,15 +377,35 @@ async function runTool(name: string, args: Json) {
         return { ok: false, motivo: "tema inválido" };
       const { error } = await supabaseAdmin
         .from("store_settings")
-        .update({ accent } as never)
+        .update({ accent, custom_theme: null })
         .eq("id", 1);
       if (error) throw error;
       return { ok: true, tema: accent };
     }
+    case "criar_tema": {
+      const hex = /^#[0-9a-fA-F]{6}$/;
+      const pick = (k: string) => (typeof args[k] === "string" && hex.test(args[k] as string) ? (args[k] as string) : undefined);
+      const theme = {
+        name: String(args["name"] ?? "Tema personalizado").slice(0, 60),
+        primary: pick("primary"),
+        background: pick("background"),
+        card: pick("card"),
+        ...(pick("border") ? { border: pick("border") } : {}),
+        ...(pick("foreground") ? { foreground: pick("foreground") } : {}),
+      };
+      if (!theme.primary || !theme.background || !theme.card)
+        return { ok: false, motivo: "cores inválidas: use hex #RRGGBB em primary, background e card" };
+      const { error } = await supabaseAdmin
+        .from("store_settings")
+        .update({ accent: "custom", custom_theme: theme })
+        .eq("id", 1);
+      if (error) throw error;
+      return { ok: true, tema: theme };
+    }
     case "ler_configuracoes": {
       const { data, error } = await supabaseAdmin
         .from("store_settings")
-        .select("banner_title,banner_subtitle,top_notice,support_link,accent")
+        .select("banner_title,banner_subtitle,top_notice,support_link,accent,custom_theme")
         .eq("id", 1)
         .single();
       if (error) throw error;
