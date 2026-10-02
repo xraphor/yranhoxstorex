@@ -353,6 +353,7 @@ export type Database = {
           accent: string
           banner_subtitle: string
           banner_title: string
+          custom_theme: Json | null
           id: number
           pix_key: string | null
           pix_payload: string | null
@@ -365,6 +366,7 @@ export type Database = {
           accent?: string
           banner_subtitle?: string
           banner_title?: string
+          custom_theme?: Json | null
           id?: number
           pix_key?: string | null
           pix_payload?: string | null
@@ -377,6 +379,7 @@ export type Database = {
           accent?: string
           banner_subtitle?: string
           banner_title?: string
+          custom_theme?: Json | null
           id?: number
           pix_key?: string | null
           pix_payload?: string | null

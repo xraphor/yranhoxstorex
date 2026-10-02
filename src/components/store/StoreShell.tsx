@@ -1,7 +1,15 @@
 import { useEffect, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ACCENTS, ACCENT_STORAGE_KEY, applyAccent, type AccentId } from "@/lib/store";
+import {
+  ACCENTS,
+  ACCENT_STORAGE_KEY,
+  THEME_SEEN_KEY,
+  applyAccent,
+  applyCustomTheme,
+  type AccentId,
+  type CustomTheme,
+} from "@/lib/store";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 
@@ -19,14 +27,28 @@ export function useStoreSettings() {
 export function StoreShell({ children }: { children: ReactNode }) {
   const { data: settings } = useStoreSettings();
 
-  // Aplica o tema publicado pelo dono como padrão da loja.
-  // Se o visitante já escolheu uma cor no seletor, a escolha dele prevalece.
+  // Aplica o tema publicado pelo dono para todos os visitantes.
+  // Quando o dono publica um tema novo, ele substitui qualquer cor escolhida antes no seletor.
   useEffect(() => {
-    const storeAccent = settings?.accent as AccentId | undefined;
-    if (!storeAccent || !ACCENTS.some((a) => a.id === storeAccent)) return;
-    const stored = localStorage.getItem(ACCENT_STORAGE_KEY);
-    if (!stored) applyAccent(storeAccent);
-  }, [settings?.accent]);
+    if (!settings) return;
+    const custom = settings.custom_theme as CustomTheme | null;
+    const isCustom = settings.accent === "custom" && custom;
+    const key = isCustom ? `custom:${JSON.stringify(custom)}` : settings.accent;
+
+    if (localStorage.getItem(THEME_SEEN_KEY) !== key) {
+      localStorage.removeItem(ACCENT_STORAGE_KEY);
+      localStorage.setItem(THEME_SEEN_KEY, key);
+    }
+    if (localStorage.getItem(ACCENT_STORAGE_KEY)) return;
+
+    if (isCustom) {
+      document.documentElement.setAttribute("data-accent", "purple");
+      applyCustomTheme(custom);
+      return;
+    }
+    const accent = settings.accent as AccentId;
+    if (ACCENTS.some((a) => a.id === accent)) applyAccent(accent);
+  }, [settings]);
 
   return (
     <div className="flex min-h-screen flex-col">
