@@ -68,7 +68,7 @@ function Home() {
           alt=""
           width={1920}
           height={800}
-          className="absolute inset-0 size-full object-cover opacity-45"
+          className="hero-tint absolute inset-0 size-full object-cover opacity-45"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30" />
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:py-24">
