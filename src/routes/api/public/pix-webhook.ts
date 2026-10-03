@@ -10,7 +10,7 @@ const gatewaySchema = z.object({
 function extractCents(text: string): number | null {
   const m = text.match(/R\$\s*([\d.]+,\d{2})/i) ?? text.match(/R\$\s*(\d+(?:\.\d{2})?)/i);
   if (!m) return null;
-  const raw = m[1];
+  const raw = m[1] ?? "";
   const normalized = raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw;
   const value = Math.round(parseFloat(normalized) * 100);
   return Number.isFinite(value) && value > 0 ? value : null;
@@ -41,7 +41,7 @@ export const Route = createFileRoute("/api/public/pix-webhook")({
         const expected = process.env["PIX_WEBHOOK_SECRET"] || "1702";
         const provided =
           request.headers.get("x-pix-secret") ??
-          (typeof body.secret === "string" ? body.secret : null) ??
+          (typeof body["secret"] === "string" ? body["secret"] : null) ??
           raw.match(/"secret"\s*:\s*"([^"]+)"/)?.[1] ??
           null;
         if (provided !== expected) {
@@ -61,7 +61,7 @@ export const Route = createFileRoute("/api/public/pix-webhook")({
         }
 
         // MacroDroid / Nubank format
-        const text = typeof body.notification === "string" ? body.notification : raw;
+        const text = typeof body["notification"] === "string" ? body["notification"] : raw;
         if (!/pix|transfer|recebeu/i.test(text)) {
           return Response.json({ ok: true, ignored: "not a pix notification" });
         }
