@@ -49,6 +49,7 @@ const CUSTOM_VARS = [
   "--popover-foreground",
   "--secondary-foreground",
   "--bolt-hue",
+  "--hero-hue",
 ];
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -107,6 +108,8 @@ export function applyCustomTheme(theme: CustomTheme | null) {
   set("--popover-foreground", fg);
   set("--secondary-foreground", fg);
   set("--bolt-hue", `${Math.round((hexHue(theme.primary) - 50 + 360) % 360)}deg`);
+  // O banner da vitrine é roxo (matiz ~297); gira o matiz até a cor do tema.
+  set("--hero-hue", `${Math.round(hexHue(theme.primary) - 297)}deg`);
 }
 
 export function formatBRL(cents: number | null | undefined) {
