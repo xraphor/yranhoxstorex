@@ -138,6 +138,10 @@
   }
 }
 
+@utility hero-tint {
+  filter: hue-rotate(var(--hero-hue, 0deg));
+}
+
 @utility glow {
   box-shadow: var(--glow);
 }
