@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import QRCode from "qrcode";
@@ -24,6 +25,7 @@ import {
 import { formatBRL, ORDER_STATUS } from "@/lib/store";
 import { buildPixPayload } from "@/lib/pix";
 import { PixSupportChat } from "@/components/store/PixSupportChat";
+import { checkGmailPayment } from "@/lib/gmail-payment.functions";
 
 export const Route = createFileRoute("/_authenticated/pedido/$id")({
   head: () => ({
@@ -59,11 +61,21 @@ function OrderPage() {
   const { data: settings } = useStoreSettings();
   const [qr, setQr] = useState<string | null>(null);
   const celebrated = useRef(false);
+  const checkPayment = useServerFn(checkGmailPayment);
+  const lastGmailCheck = useRef(0);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["order", id],
     refetchInterval: (query) => (query.state.data?.order?.status === "paid" ? false : 5000),
     queryFn: async () => {
+      if (Date.now() - lastGmailCheck.current >= 15_000) {
+        lastGmailCheck.current = Date.now();
+        try {
+          await checkPayment({ data: { orderId: id } });
+        } catch (error) {
+          console.error("Gmail payment check failed", error);
+        }
+      }
       const [{ data: order, error }, { data: items, error: itemsError }] = await Promise.all([
         supabase.from("orders").select("*").eq("id", id).maybeSingle(),
         supabase.from("order_items").select("*").eq("order_id", id),
@@ -117,7 +129,7 @@ function OrderPage() {
       toast.error("Não foi possível confirmar o envio do Pix.");
       return;
     }
-    toast.success("Recebemos seu aviso! A liberação ocorre após a confirmação do Pix.");
+    toast.success("Recebemos seu aviso! O Gmail confirmará o Pix automaticamente.");
     void refetch();
   }
 
@@ -242,7 +254,7 @@ function OrderPage() {
                 <div className="rounded-md border border-warning/40 bg-warning/10 p-4 text-center">
                   <CheckCircle2 className="mx-auto size-6 text-warning" />
                   <p className="mt-2 text-sm font-semibold text-warning">Aviso de pagamento enviado</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Estamos confirmando o Pix. Esta página atualiza automaticamente.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Estamos conferindo o aviso do Nubank no Gmail. Esta página atualiza automaticamente.</p>
                 </div>
               </div>
             ) : (
