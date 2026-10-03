@@ -125,6 +125,44 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_email_receipts: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          gmail_message_id: string
+          id: string
+          order_id: string | null
+          received_at: string
+          sender: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          gmail_message_id: string
+          id?: string
+          order_id?: string | null
+          received_at: string
+          sender: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          gmail_message_id?: string
+          id?: string
+          order_id?: string | null
+          received_at?: string
+          sender?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_email_receipts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_reviews: {
         Row: {
           author_name: string
