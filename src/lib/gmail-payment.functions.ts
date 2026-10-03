@@ -124,7 +124,7 @@ export const checkGmailPayment = createServerFn({ method: "POST" })
         .eq("total_cents", order.total_cents)
         .eq("status", "awaiting_confirmation")
         .lte("created_at", new Date(receivedAt).toISOString())
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
         .limit(1);
       if (queue?.[0]?.id !== order.id) return { paid: false };
 
