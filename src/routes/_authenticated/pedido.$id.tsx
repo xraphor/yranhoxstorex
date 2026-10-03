@@ -68,11 +68,7 @@ function OrderPage() {
     queryKey: ["order", id],
     refetchInterval: (query) => (query.state.data?.order?.status === "paid" ? false : 5000),
     queryFn: async () => {
-      const previous = data?.order;
-      if (
-        previous?.status === "awaiting_confirmation" &&
-        Date.now() - lastGmailCheck.current >= 15_000
-      ) {
+      if (Date.now() - lastGmailCheck.current >= 15_000) {
         lastGmailCheck.current = Date.now();
         try {
           await checkPayment({ data: { orderId: id } });
