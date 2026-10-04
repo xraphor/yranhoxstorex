@@ -12,7 +12,7 @@ const InputSchema = z.object({
   messages: z.array(MessageSchema).min(1).max(40),
 });
 
-const SYSTEM_PROMPT = `Você é o Copiloto da yRanhox Store X, o assistente administrativo do dono da loja (loja de produtos digitais: contas, keys, scripts, itens de jogos, métodos).
+export const ADMIN_COPILOT_SYSTEM_PROMPT = `Você é o Copiloto da yRanhox Store X, o assistente administrativo do dono da loja (loja de produtos digitais: contas, keys, scripts, itens de jogos, métodos).
 
 Você obedece às ordens do dono e executa de verdade usando as ferramentas disponíveis.
 Regras:
@@ -28,7 +28,7 @@ Regras:
 
 type Json = Record<string, unknown>;
 
-const tools = [
+export const adminCopilotToolSpecs = [
   {
     type: "function",
     function: {
@@ -54,6 +54,8 @@ const tools = [
           warranty: { type: "string" },
           active: { type: "boolean" },
           featured: { type: "boolean" },
+          image_url: { type: "string" },
+          images: { type: "array", items: { type: "string" } },
         },
         required: ["title", "price_brl"],
         additionalProperties: false,
@@ -78,6 +80,8 @@ const tools = [
           warranty: { type: "string" },
           active: { type: "boolean" },
           featured: { type: "boolean" },
+          image_url: { type: "string" },
+          images: { type: "array", items: { type: "string" } },
         },
         required: ["product_id"],
         additionalProperties: false,
@@ -275,7 +279,7 @@ function brlToCents(value: unknown) {
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
 }
 
-async function runTool(name: string, args: Json) {
+export async function runAdminCopilotTool(name: string, args: Json) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const productPayload = () => {
@@ -290,6 +294,8 @@ async function runTool(name: string, args: Json) {
     if (typeof args["warranty"] === "string") payload["warranty"] = args["warranty"];
     if (typeof args["active"] === "boolean") payload["active"] = args["active"];
     if (typeof args["featured"] === "boolean") payload["featured"] = args["featured"];
+    if (typeof args["image_url"] === "string") payload["image_url"] = args["image_url"];
+    if (Array.isArray(args["images"])) payload["images"] = args["images"];
     return payload;
   };
 
@@ -489,7 +495,7 @@ async function runTool(name: string, args: Json) {
 const CLAUDE_URL = "https://ai.gateway.lovable.dev/v1/messages";
 const CLAUDE_MODEL = "anthropic/claude-sonnet-5";
 
-const claudeTools = tools.map((t) => ({
+const claudeTools = adminCopilotToolSpecs.map((t) => ({
   name: t.function.name,
   description: t.function.description,
   input_schema: t.function.parameters,
@@ -514,7 +520,7 @@ async function callClaude(apiKey: string, messages: ClaudeMessage[]) {
     body: JSON.stringify({
       model: CLAUDE_MODEL,
       max_tokens: 16000,
-      system: SYSTEM_PROMPT,
+      system: ADMIN_COPILOT_SYSTEM_PROMPT,
       messages,
       tools: claudeTools,
       tool_choice: { type: "auto" },
@@ -658,7 +664,7 @@ export const adminAiChat = createServerFn({ method: "POST" })
         for (const call of toolUses) {
           let toolResult: unknown;
           try {
-            toolResult = await runTool(call.name, call.input);
+            toolResult = await runAdminCopilotTool(call.name, call.input);
             actions.push(call.name);
           } catch (error) {
             toolResult = { erro: error instanceof Error ? error.message : "falha ao executar" };
