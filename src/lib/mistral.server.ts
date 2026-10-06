@@ -1,0 +1,162 @@
+import { z } from "zod";
+
+const ToolCall = z.object({
+  id: z.string().min(1),
+  type: z.literal("function"),
+  function: z.object({ name: z.string().min(1), arguments: z.string() }),
+});
+export type MistralToolCall = z.infer<typeof ToolCall>;
+export type MistralMessage =
+  | { role: "system" | "user"; content: string }
+  | { role: "assistant"; content: string | null; tool_calls?: MistralToolCall[] }
+  | { role: "tool"; tool_call_id: string; content: string };
+
+const Completion = z.object({
+  choices: z
+    .array(
+      z.object({
+        finish_reason: z.string().nullable(),
+        message: z.object({
+          content: z.string().nullable().optional(),
+          refusal: z.string().nullable().optional(),
+          tool_calls: z.array(ToolCall).optional(),
+        }),
+      }),
+    )
+    .min(1),
+});
+
+export async function callMistral(
+  options: {
+    apiKey: string;
+    model: string;
+    system: string;
+    messages: MistralMessage[];
+    tools: readonly unknown[];
+  },
+  request: typeof fetch = fetch,
+) {
+  const response = await request("https://api.mistral.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      ...(options.apiKey ? { Authorization: `Bearer ${options.apiKey}` } : {}),
+      "Content-Type": "application/json",
+    },
+    signal: AbortSignal.timeout(60000),
+    body: JSON.stringify({
+      model: options.model,
+      messages: [{ role: "system", content: options.system }, ...options.messages],
+      tools: options.tools,
+      tool_choice: "auto",
+      parallel_tool_calls: false,
+      max_tokens: 2048,
+      stream: false,
+    }),
+  });
+  // Do not return or log upstream error bodies, which may contain private prompts.
+  if (!response.ok) {
+    const retry = response.headers.get("retry-after");
+    const seconds =
+      retry && /^\d+(\.\d+)?$/.test(retry)
+        ? Math.ceil(Number(retry))
+        : retry
+          ? Math.ceil((Date.parse(retry) - Date.now()) / 1000)
+          : 0;
+    return {
+      error: response.status,
+      retryAfter: Number.isFinite(seconds) ? Math.max(0, Math.min(seconds, 86400)) : 0,
+    } as const;
+  }
+  const body: unknown = await response.json().catch(() => null);
+  // Some providers report generation failures inside an HTTP 200 response.
+  const upstreamError = z
+    .object({
+      error: z.object({ code: z.number().int().min(400).max(599) }),
+    })
+    .safeParse(body);
+  if (upstreamError.success) return { error: upstreamError.data.error.code } as const;
+  const parsed = Completion.safeParse(body);
+  if (!parsed.success) return { error: 502, reason: "invalid_response" } as const;
+  const choice = parsed.data.choices[0]!;
+  const calls = choice.message.tool_calls ?? [];
+  if (choice.finish_reason === "length") return { error: 502, reason: "truncated" } as const;
+  return {
+    message: {
+      role: "assistant" as const,
+      content: choice.message.content ?? null,
+      ...(calls.length ? { tool_calls: calls } : {}),
+    },
+    refusal: Boolean(choice.message.refusal || choice.finish_reason === "content_filter"),
+  };
+}
+
+export async function testMistralConnection(apiKey: string, request: typeof fetch = fetch) {
+  const options = {
+    apiKey,
+    model: "mistral-small-latest",
+    system:
+      "Teste de integração. Chame verificar_conexao com {}. Após receber o resultado, responda OK.",
+    messages: [{ role: "user" as const, content: "Execute o teste de conexão." }],
+    tools: [
+      {
+        type: "function",
+        function: {
+          name: "verificar_conexao",
+          description: "Teste fictício sem acesso à loja.",
+          parameters: { type: "object", properties: {}, additionalProperties: false },
+        },
+      },
+    ],
+  };
+  const first = await callMistral(options, request);
+  if ("error" in first)
+    return {
+      ok: false,
+      message: `Mistral recusou o teste (código ${first.error}). Confira a chave, o Free mode e a cota da conta.`,
+    };
+  const calls = first.message.tool_calls ?? [];
+  const call = calls[0];
+  if (first.refusal || calls.length !== 1 || !call || call.function.name !== "verificar_conexao")
+    return {
+      ok: false,
+      message: "A IA respondeu, mas não confirmou suporte às ferramentas da loja.",
+    };
+  let args: unknown;
+  try {
+    args = JSON.parse(call.function.arguments);
+  } catch {
+    args = null;
+  }
+  if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).length)
+    return { ok: false, message: "A IA retornou argumentos inválidos no teste." };
+  const final = await callMistral(
+    {
+      ...options,
+      messages: [
+        ...options.messages,
+        first.message,
+        {
+          role: "tool",
+          tool_call_id: call.id,
+          content: '{"ok":true}',
+        },
+      ],
+    },
+    request,
+  );
+  if (
+    "error" in final ||
+    final.refusal ||
+    final.message.tool_calls?.length ||
+    !final.message.content?.trim()
+  )
+    return {
+      ok: false,
+      message: "A IA chamou a ferramenta de teste, mas não concluiu a resposta.",
+    };
+  return {
+    ok: true,
+    message:
+      "Conexão e ferramentas testadas agora. Nenhum dado da loja foi alterado. As cotas do provedor continuam valendo.",
+  };
+}

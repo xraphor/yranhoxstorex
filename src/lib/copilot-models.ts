@@ -1,25 +1,11 @@
 export const COPILOT_MODELS = [
   {
-    id: "groq-120b",
-    label: "Groq · GPT OSS 120B",
-    provider: "groq",
-    model: "openai/gpt-oss-120b",
-    description: "Modelo atual da loja. Plano gratuito com limites.",
-  },
-  {
-    id: "groq-20b",
-    label: "Groq · GPT OSS 20B",
-    provider: "groq",
-    model: "openai/gpt-oss-20b",
-    description: "Alternativa menor na mesma conta Groq; os limites do provedor continuam valendo.",
-  },
-  {
-    id: "openrouter-free",
-    label: "OpenRouter · Modelos gratuitos",
-    provider: "openrouter",
-    model: "openrouter/free",
+    id: "mistral-small",
+    label: "Mistral Small",
+    provider: "mistral",
+    model: "mistral-small-latest",
     description:
-      "Escolhe um modelo gratuito compatível com as ferramentas da loja. Disponibilidade variável.",
+      "Use uma conta Mistral em Free mode. Há limites de uso; teste a conexão antes de começar.",
   },
 ] as const;
 export type CopilotModelId = (typeof COPILOT_MODELS)[number]["id"];
