@@ -587,6 +587,22 @@ export const adminAiChat = createServerFn({ method: "POST" })
 
       if ("error" in result) {
         const status = result.error;
+        if ("reason" in result && result.reason === "truncated")
+          return respond(
+            "O modelo atingiu o limite de resposta antes de terminar. Peça uma tarefa menor. Confira as ações já realizadas antes de repetir.",
+          );
+        if ("reason" in result && result.reason === "invalid_response")
+          return respond(
+            "O provedor enviou uma resposta inválida (502). Nenhuma ferramenta dessa resposta foi executada. Confira as ações anteriores da conversa.",
+          );
+        if (status === 404)
+          return respond(
+            "Não há um modelo disponível compatível com esta solicitação (404). No OpenRouter, isso pode ocorrer por disponibilidade, suporte às ferramentas ou configurações de privacidade da conta. Confira essas configurações sem liberar dados que não deseja compartilhar.",
+          );
+        if (status === 400 || status === 422)
+          return respond(
+            `O provedor recusou o formato ou tamanho da solicitação (${status}). Tente uma conversa nova com um pedido curto, como listar produtos.`,
+          );
         if (status === 401) return respond("A chave de acesso da IA foi recusada.");
         if (status === 402 || status === 403)
           return respond(
@@ -597,7 +613,7 @@ export const adminAiChat = createServerFn({ method: "POST" })
             `O provedor atingiu o limite de uso. ${"retryAfter" in result && result.retryAfter ? `Aguarde cerca de ${result.retryAfter} segundos.` : "Aguarde antes de tentar novamente; a cota pode ser por minuto ou por dia."} Confira as ações já realizadas antes de repetir uma ordem.`,
           );
         return respond(
-          "A IA não respondeu agora. Verifique o histórico e as alterações da loja antes de repetir uma ordem.",
+          `O provedor de IA está indisponível ou falhou (código ${status}). Verifique o histórico e as alterações da loja antes de repetir uma ordem.`,
         );
       }
 
