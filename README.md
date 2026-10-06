@@ -197,3 +197,16 @@ Não use prefixo `VITE_`, não coloque a chave em arquivos versionados e não ex
 O plano gratuito da Groq tem cotas próprias; trocar a IA não elimina custos de hospedagem.
 A integração preserva as ferramentas administrativas e o histórico de conversas.
 Os testes locais usam respostas simuladas; valide a conexão real após configurar o segredo.
+
+## Escolha de modelos
+
+O seletor do Copiloto oferece Groq GPT OSS 120B e 20B (usam `GROQ_API_KEY`),
+e OpenRouter gratuito (`OPENROUTER_API_KEY`).
+O OpenRouter usa apenas `openrouter/free`, exige suporte aos parâmetros enviados
+e restringe o preço de entrada/saída a zero; sua disponibilidade e cotas variam.
+A escolha feita no painel se aplica à próxima mensagem. O histórico permanece
+na conversa selecionada. As credenciais nunca são devolvidas ao navegador.
+
+Erros 429 mostram o Retry-After do provedor quando disponível, sem repetir
+automaticamente ações administrativas. O teto de saída foi reduzido a 2048 tokens.
+O seletor substitui o antigo override global `GROQ_MODEL`.

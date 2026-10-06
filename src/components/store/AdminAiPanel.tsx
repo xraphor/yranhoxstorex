@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { adminAiChat } from "@/lib/admin-ai.functions";
+import { adminAiChat, getAdminCopilotModels } from "@/lib/admin-ai.functions";
 import {
   createAdminConversation,
   getAdminConversation,
@@ -25,6 +25,14 @@ const SUGGESTIONS = [
 export function AdminAiPanel() {
   const chat = useServerFn(adminAiChat);
   const queryClient = useQueryClient();
+  const [modelId, setModelId] = useState("groq-120b");
+  const listModels = useServerFn(getAdminCopilotModels);
+  const modelOptions = useQuery({
+    queryKey: ["admin-copilot-models"],
+    queryFn: () => listModels(),
+  });
+  const chosenModel = modelOptions.data?.find((model) => model.id === modelId);
+  const modelUnavailable = !chosenModel?.configured;
   const [input, setInput] = useState("");
   const [threadId, setThreadId] = useState<string | null>(null);
   const [optimisticMessage, setOptimisticMessage] = useState<string | null>(null);
@@ -60,7 +68,7 @@ export function AdminAiPanel() {
         activeId = thread.id;
         setThreadId(activeId);
       }
-      const result = await chat({ data: { threadId: activeId, message } });
+      const result = await chat({ data: { threadId: activeId, message, modelId } });
       return { ...result, threadId: activeId };
     },
     onSuccess: async (result) => {
@@ -91,6 +99,7 @@ export function AdminAiPanel() {
   function submit(text: string) {
     const value = text.trim();
     if (
+      modelUnavailable ||
       !value ||
       value.length > 4000 ||
       send.isPending ||
@@ -120,6 +129,37 @@ export function AdminAiPanel() {
         <h2 className="font-display text-sm">Copiloto da loja</h2>
       </div>
 
+      <div className="space-y-2">
+        <label htmlFor="copilot-model" className="text-sm">
+          Modelo da IA
+        </label>
+        <select
+          id="copilot-model"
+          className="w-full rounded-md border border-border bg-background p-2 text-sm"
+          value={modelId}
+          disabled={send.isPending || modelOptions.isPending}
+          onChange={(event) => setModelId(event.target.value)}
+        >
+          {modelOptions.data?.map((model) => (
+            <option key={model.id} value={model.id}>
+              {model.label}
+              {model.configured ? "" : " — configuração pendente"}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground">{chosenModel?.description}</p>
+        {chosenModel && !chosenModel.configured ? (
+          <p role="status" className="text-xs text-muted-foreground">
+            {chosenModel.reason}
+          </p>
+        ) : null}
+        {modelOptions.isError ? (
+          <Button type="button" variant="outline" onClick={() => void modelOptions.refetch()}>
+            Recarregar modelos
+          </Button>
+        ) : null}
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <select
           aria-label="Conversas do Copiloto"
@@ -139,6 +179,7 @@ export function AdminAiPanel() {
           type="button"
           variant="outline"
           disabled={
+            modelUnavailable ||
             send.isPending ||
             history.isFetching ||
             conversations.isPending ||
@@ -213,6 +254,7 @@ export function AdminAiPanel() {
             variant="outline"
             className="h-auto whitespace-normal py-1 text-left text-xs"
             disabled={
+              modelUnavailable ||
               send.isPending ||
               history.isFetching ||
               conversations.isPending ||
@@ -232,6 +274,7 @@ export function AdminAiPanel() {
           aria-label="Mensagem para o Copiloto"
           maxLength={4000}
           disabled={
+            modelUnavailable ||
             send.isPending ||
             history.isFetching ||
             conversations.isPending ||
@@ -252,6 +295,7 @@ export function AdminAiPanel() {
           type="button"
           aria-label="Enviar mensagem"
           disabled={
+            modelUnavailable ||
             send.isPending ||
             !input.trim() ||
             history.isFetching ||
