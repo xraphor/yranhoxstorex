@@ -185,5 +185,15 @@ npm run build
 ```
 
 A validação completa com o administrador exige as configurações de servidor do
-Supabase e `LOVABLE_API_KEY`. Esta etapa implementa histórico por conversa; memória
+Supabase e `GROQ_API_KEY`. Esta etapa implementa histórico por conversa; memória
 entre conversas e anexos de mídia continuam pendentes no roadmap.
+
+## Provedor externo do Copiloto
+
+O Copiloto usa diretamente a Groq; não há fallback para o gateway de IA do Lovable.
+Configure `GROQ_API_KEY` nos segredos do runtime de servidor que hospeda o TanStack Start.
+Não use prefixo `VITE_`, não coloque a chave em arquivos versionados e não exponha no navegador.
+`GROQ_MODEL` é opcional e usa `openai/gpt-oss-120b` por padrão.
+O plano gratuito da Groq tem cotas próprias; trocar a IA não elimina custos de hospedagem.
+A integração preserva as ferramentas administrativas e o histórico de conversas.
+Os testes locais usam respostas simuladas; valide a conexão real após configurar o segredo.

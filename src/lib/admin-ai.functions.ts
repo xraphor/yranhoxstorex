@@ -499,138 +499,6 @@ export async function runAdminCopilotTool(name: string, args: Json) {
   }
 }
 
-// Claude via Lovable AI Gateway (API nativa /v1/messages).
-// Não depende de chave própria da OpenAI/Anthropic — usa a chave embutida do projeto.
-const CLAUDE_URL = "https://ai.gateway.lovable.dev/v1/messages";
-const CLAUDE_MODEL = "anthropic/claude-sonnet-5";
-
-const claudeTools = adminCopilotToolSpecs.map((t) => ({
-  name: t.function.name,
-  description: t.function.description,
-  input_schema: t.function.parameters,
-}));
-
-type ClaudeBlock =
-  | { type: "text"; text: string }
-  | { type: "tool_use"; id: string; name: string; input: Json }
-  | { type: "thinking"; thinking: string; signature: string }
-  | { type: "redacted_thinking"; data: string };
-
-type ClaudeMessage = { role: "user" | "assistant"; content: string | ClaudeBlock[] };
-
-async function callClaude(apiKey: string, messages: ClaudeMessage[]) {
-  const response = await fetch(CLAUDE_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "X-Lovable-AIG-SDK": "fetch",
-    },
-    body: JSON.stringify({
-      model: CLAUDE_MODEL,
-      max_tokens: 16000,
-      system: ADMIN_COPILOT_SYSTEM_PROMPT,
-      messages,
-      tools: claudeTools,
-      tool_choice: { type: "auto" },
-      stream: true,
-    }),
-  });
-
-  if (!response.ok) {
-    const status = response.status;
-    const detail = await response.text();
-    console.error("[admin-ai]", status, detail.slice(0, 500));
-    return { error: status as number, detail };
-  }
-
-  // Consome o stream SSE e acumula o resultado final (texto, raciocínio e ferramentas).
-  const blocks: (ClaudeBlock | undefined)[] = [];
-  const jsonAcc: Record<number, string> = {};
-  let stopReason = "";
-  let buffer = "";
-  const body = response.body;
-  if (!body) return { error: 502 as number, detail: "sem corpo de resposta" };
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-
-  const handleEvent = (raw: string) => {
-    const line = raw.split("\n").find((l) => l.startsWith("data:"));
-    if (!line) return;
-    const data = line.slice(5).trim();
-    if (!data || data === "[DONE]") return;
-    let event: {
-      type: string;
-      index?: number;
-      content_block?: { type: string; id?: string; name?: string; data?: string };
-      delta?: {
-        type?: string;
-        text?: string;
-        partial_json?: string;
-        thinking?: string;
-        signature?: string;
-        stop_reason?: string;
-      };
-    };
-    try {
-      event = JSON.parse(data);
-    } catch {
-      return;
-    }
-    const i = event.index ?? 0;
-    if (event.type === "content_block_start" && event.content_block) {
-      const cb = event.content_block;
-      if (cb.type === "text") blocks[i] = { type: "text", text: "" };
-      else if (cb.type === "tool_use")
-        blocks[i] = { type: "tool_use", id: cb.id ?? "", name: cb.name ?? "", input: {} };
-      else if (cb.type === "thinking")
-        blocks[i] = { type: "thinking", thinking: "", signature: "" };
-      else if (cb.type === "redacted_thinking")
-        blocks[i] = { type: "redacted_thinking", data: cb.data ?? "" };
-    }
-    if (event.type === "content_block_delta" && event.delta) {
-      const block = blocks[i];
-      if (!block) return;
-      const d = event.delta;
-      if (d.type === "text_delta" && block.type === "text") block.text += d.text ?? "";
-      if (d.type === "input_json_delta" && block.type === "tool_use")
-        jsonAcc[i] = (jsonAcc[i] ?? "") + (d.partial_json ?? "");
-      if (d.type === "thinking_delta" && block.type === "thinking")
-        block.thinking += d.thinking ?? "";
-      if (d.type === "signature_delta" && block.type === "thinking")
-        block.signature += d.signature ?? "";
-    }
-    if (event.type === "message_delta" && event.delta?.stop_reason)
-      stopReason = event.delta.stop_reason;
-  };
-
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const parts = buffer.split("\n\n");
-    buffer = parts.pop() ?? "";
-    for (const part of parts) handleEvent(part);
-  }
-  if (buffer.trim()) handleEvent(buffer);
-
-  // Finaliza os inputs das ferramentas e remove posições vazias.
-  const finalBlocks: ClaudeBlock[] = [];
-  blocks.forEach((block, i) => {
-    if (!block) return;
-    if (block.type === "tool_use") {
-      try {
-        block.input = jsonAcc[i] ? (JSON.parse(jsonAcc[i]) as Json) : {};
-      } catch {
-        block.input = {};
-      }
-    }
-    finalBlocks.push(block);
-  });
-
-  return { blocks: finalBlocks, stopReason };
-}
-
 export const adminAiChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => InputSchema.parse(data))
@@ -640,10 +508,10 @@ export const adminAiChat = createServerFn({ method: "POST" })
       throw new Error("Acesso não autorizado");
     }
 
-    const apiKey = process.env["LOVABLE_API_KEY"];
+    const apiKey = process.env["GROQ_API_KEY"];
     if (!apiKey) {
       return {
-        reply: "O assistente está sem chave de acesso configurada.",
+        reply: "Configure GROQ_API_KEY nos segredos do servidor para ativar o Copiloto.",
         actions: [] as string[],
       };
     }
@@ -664,7 +532,10 @@ export const adminAiChat = createServerFn({ method: "POST" })
       .limit(20);
     if (historyError) throw new Error("Não foi possível carregar o histórico");
 
-    const messages: ClaudeMessage[] = conversationModelHistory(history ?? []);
+    const { callGroq } = await import("@/lib/groq.server");
+    const messages: import("@/lib/groq.server").GroqMessage[] = conversationModelHistory(
+      history ?? [],
+    );
     const { error: saveError } = await context.supabase.from("admin_copilot_messages").insert({
       thread_id: thread.id,
       user_id: context.userId,
@@ -692,9 +563,15 @@ export const adminAiChat = createServerFn({ method: "POST" })
     };
 
     for (let round = 0; round < 8; round++) {
-      let result: Awaited<ReturnType<typeof callClaude>>;
+      let result: Awaited<ReturnType<typeof callGroq>>;
       try {
-        result = await callClaude(apiKey, messages);
+        result = await callGroq({
+          apiKey,
+          model: process.env["GROQ_MODEL"] || "openai/gpt-oss-120b",
+          system: ADMIN_COPILOT_SYSTEM_PROMPT,
+          messages,
+          tools: adminCopilotToolSpecs,
+        });
       } catch {
         return respond(
           "A conexão com a IA foi interrompida. Confira as ações já realizadas antes de repetir uma ordem.",
@@ -706,7 +583,7 @@ export const adminAiChat = createServerFn({ method: "POST" })
         if (status === 401) return respond("A chave de acesso da IA foi recusada.");
         if (status === 402 || status === 403)
           return respond(
-            "O serviço de IA está sem créditos ou sem permissão de acesso. Verifique a configuração no Lovable.",
+            "O serviço de IA está sem créditos ou sem permissão de acesso. Verifique a configuração da Groq.",
           );
         if (status === 429)
           return respond("Muitas mensagens seguidas. Aguarde alguns segundos e tente de novo.");
@@ -715,45 +592,42 @@ export const adminAiChat = createServerFn({ method: "POST" })
         );
       }
 
-      const blocks = result.blocks;
-      if (result.stopReason === "refusal") return respond("A IA recusou esse pedido.");
-      const toolUses = blocks.filter(
-        (b): b is Extract<ClaudeBlock, { type: "tool_use" }> => b.type === "tool_use",
-      );
+      if (result.refusal) return respond("A IA recusou esse pedido.");
+      const toolUses = result.message.tool_calls ?? [];
 
       if (toolUses.length) {
-        messages.push({ role: "assistant", content: blocks });
-        const toolResults: { type: "tool_result"; tool_use_id: string; content: string }[] = [];
+        messages.push(result.message);
+        const toolResults: import("@/lib/groq.server").GroqMessage[] = [];
         for (const call of toolUses) {
           let toolResult: unknown;
           try {
-            toolResult = await runAdminCopilotTool(call.name, call.input);
+            const args = z.record(z.unknown()).parse(JSON.parse(call.function.arguments));
+            if (!adminCopilotToolSpecs.some((tool) => tool.function.name === call.function.name)) {
+              throw new Error("Ferramenta desconhecida");
+            }
+            toolResult = await runAdminCopilotTool(call.function.name, args);
             if (!(
               toolResult &&
               typeof toolResult === "object" &&
               "ok" in toolResult &&
               toolResult.ok === false
             )) {
-              actions.push(call.name);
+              actions.push(call.function.name);
             }
           } catch (error) {
             toolResult = { erro: error instanceof Error ? error.message : "falha ao executar" };
           }
           toolResults.push({
-            type: "tool_result",
-            tool_use_id: call.id,
+            role: "tool",
+            tool_call_id: call.id,
             content: JSON.stringify(toolResult).slice(0, 8000),
           });
         }
-        messages.push({ role: "user", content: toolResults as unknown as ClaudeBlock[] });
+        messages.push(...toolResults);
         continue;
       }
 
-      const text = blocks
-        .filter((b): b is Extract<ClaudeBlock, { type: "text" }> => b.type === "text")
-        .map((b) => b.text)
-        .join("")
-        .trim();
+      const text = result.message.content?.trim() ?? "";
       return respond(
         text || "A IA encerrou sem uma resposta em texto. Confira as ações da conversa.",
       );
