@@ -11,3 +11,4 @@
 - [x] Fixar a vitrine em quatro produtos por fileira e compactar os cards no celular
 - [x] Conectar o Gmail do dono para confirmar automaticamente avisos reais de Pix do Nubank
 - [x] Priorizar o pedido mais recente compatível quando houver testes Pix duplicados
+- [ ] Concluir o Copiloto admin com conversas, memória, mídia e criação assistida de produtos

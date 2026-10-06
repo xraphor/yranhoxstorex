@@ -72,8 +72,8 @@ export const Reasoning = memo(
 
     const [isOpen, setIsOpen] = useControllableState<boolean>({
       defaultProp: resolvedDefaultOpen,
-      onChange: onOpenChange,
       prop: open,
+      ...(onOpenChange ? { onChange: onOpenChange } : {}),
     });
     const [duration, setDuration] = useControllableState<number | undefined>({
       defaultProp: undefined,
@@ -106,19 +106,21 @@ export const Reasoning = memo(
 
     // Auto-close when streaming ends (once only, and only if it ever streamed)
     useEffect(() => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
       if (
         hasEverStreamedRef.current &&
         !isStreaming &&
         isOpen &&
         !hasAutoClosed
       ) {
-        const timer = setTimeout(() => {
+        timer = setTimeout(() => {
           setIsOpen(false);
           setHasAutoClosed(true);
         }, AUTO_CLOSE_DELAY);
-
-        return () => clearTimeout(timer);
       }
+      return () => {
+        if (timer) clearTimeout(timer);
+      };
     }, [isStreaming, isOpen, setIsOpen, hasAutoClosed]);
 
     const handleOpenChange = useCallback(

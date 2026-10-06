@@ -11,3 +11,4 @@
 
 - Product media is stored in the private `product-images` bucket; only verified store administrators may upload or remove files, while a read-only catalog endpoint serves images to shoppers.
 - Pix confirmation reads the owner's workspace Gmail only from authenticated server functions and consumes each verified Nubank receipt once to prevent duplicate deliveries.
+- Admin Copilot conversations use route-scoped cloud threads; AI calls and privileged tools stay server-side and verify the sole admin before access.

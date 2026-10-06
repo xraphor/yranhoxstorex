@@ -195,7 +195,7 @@ export const Attachment = ({
   const mediaCategory = getMediaCategory(data);
 
   const contextValue = useMemo<AttachmentContextValue>(
-    () => ({ data, mediaCategory, onRemove, variant }),
+    () => ({ data, mediaCategory, variant, ...(onRemove ? { onRemove } : {}) }),
     [data, mediaCategory, onRemove, variant]
   );
 
