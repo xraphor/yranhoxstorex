@@ -22,22 +22,7 @@ export function resolveCopilotProvider(id: string, env: Record<string, string | 
       provider: selection.provider,
     };
   }
-  if (!env["OLLAMA_BASE_URL"])
-    throw new Error(
-      "Conecte um servidor Ollama usando OLLAMA_BASE_URL; esta opção não funciona sem um modelo instalado.",
-    );
-  const base = new URL(env["OLLAMA_BASE_URL"]);
-  if (base.username || base.password || base.search || base.hash)
-    throw new Error("OLLAMA_BASE_URL inválida");
-  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(base.hostname);
-  if (base.protocol !== "https:" && !(base.protocol === "http:" && loopback))
-    throw new Error("O servidor Ollama remoto deve usar HTTPS.");
-  return {
-    apiKey: env["OLLAMA_ACCESS_TOKEN"] ?? "",
-    model: selection.model,
-    endpoint: `${base.toString().replace(/\/$/, "")}/chat/completions`,
-    provider: selection.provider,
-  };
+  throw new Error("Provedor não permitido");
 }
 
 export function copilotModelAvailability(env: Record<string, string | undefined>) {

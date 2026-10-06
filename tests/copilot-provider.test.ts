@@ -20,27 +20,13 @@ test("availability never returns keys or endpoint configuration", () => {
   const options = copilotModelAvailability({ GROQ_API_KEY: "private-test-secret" });
   assert.equal(options.filter((option) => option.configured).length, 2);
   assert.ok(!JSON.stringify(options).includes("private-test-secret"));
-  assert.ok(
-    options.filter((option) => option.provider === "ollama").every((option) => !option.configured),
+  assert.deepEqual(
+    options.map((option) => option.id),
+    ["groq-120b", "groq-20b", "openrouter-free"],
   );
 });
 
-test("local models require a configured safe server endpoint but no API key", () => {
-  assert.throws(
-    () => resolveCopilotProvider("ollama-qwen", { OLLAMA_BASE_URL: "http://remote.test/v1" }),
-    /HTTPS/,
-  );
-  assert.throws(
-    () =>
-      resolveCopilotProvider("ollama-qwen", {
-        OLLAMA_BASE_URL: "https://user:password@remote.test/v1",
-      }),
-    /inválida/,
-  );
-  const provider = resolveCopilotProvider("ollama-qwen", {
-    OLLAMA_BASE_URL: "http://localhost:11434/v1",
-  });
-  assert.equal(provider.apiKey, "");
-  assert.equal(provider.endpoint, "http://localhost:11434/v1/chat/completions");
-  assert.equal(provider.model, "qwen3:8b");
+test("rejects local models while that integration is disabled", () => {
+  assert.throws(() => resolveCopilotProvider("ollama-qwen", {}), /Modelo não permitido/);
+  assert.throws(() => resolveCopilotProvider("ollama-llama", {}), /Modelo não permitido/);
 });
