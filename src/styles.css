@@ -2,6 +2,15 @@
 @source "../src";
 @import "tw-animate-css";
 
+@keyframes text-shimmer {
+  from { background-position: 100% center; }
+  to { background-position: 0% center; }
+}
+
+@utility animate-shimmer {
+  animation: text-shimmer var(--shimmer-duration, 2s) linear infinite;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /*
