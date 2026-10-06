@@ -185,28 +185,25 @@ npm run build
 ```
 
 A validação completa com o administrador exige as configurações de servidor do
-Supabase e `GROQ_API_KEY`. Esta etapa implementa histórico por conversa; memória
+Supabase e `MISTRAL_API_KEY`. Esta etapa implementa histórico por conversa; memória
 entre conversas e anexos de mídia continuam pendentes no roadmap.
 
 ## Provedor externo do Copiloto
 
-O Copiloto usa diretamente a Groq; não há fallback para o gateway de IA do Lovable.
-Configure `GROQ_API_KEY` nos segredos do runtime de servidor que hospeda o TanStack Start.
-Não use prefixo `VITE_`, não coloque a chave em arquivos versionados e não exponha no navegador.
-`GROQ_MODEL` é opcional e usa `openai/gpt-oss-120b` por padrão.
-O plano gratuito da Groq tem cotas próprias; trocar a IA não elimina custos de hospedagem.
-A integração preserva as ferramentas administrativas e o histórico de conversas.
-Os testes locais usam respostas simuladas; valide a conexão real após configurar o segredo.
+O Copiloto usa Mistral Small diretamente. Groq, OpenRouter e o gateway de IA do
+Lovable não são usados nem como fallback. As conversas existentes são preservadas.
 
-## Escolha de modelos
+1. Crie uma conta em https://console.mistral.ai/ e mantenha o **Free mode**.
+2. Gere uma chave e salve como MISTRAL_API_KEY nos segredos do runtime de servidor.
+   Não use prefixo VITE_, nem envie a chave ao navegador ou ao Git.
+3. Publique a atualização e use **Testar conexão** no Copiloto.
+4. Teste primeiro um pedido de leitura: “Liste os produtos da loja”.
 
-O seletor do Copiloto oferece Groq GPT OSS 120B e 20B (usam `GROQ_API_KEY`),
-e OpenRouter gratuito (`OPENROUTER_API_KEY`).
-O OpenRouter usa apenas `openrouter/free`, exige suporte aos parâmetros enviados
-e restringe o preço de entrada/saída a zero; sua disponibilidade e cotas variam.
-A escolha feita no painel se aplica à próxima mensagem. O histórico permanece
-na conversa selecionada. As credenciais nunca são devolvidas ao navegador.
-
-Erros 429 mostram o Retry-After do provedor quando disponível, sem repetir
-automaticamente ações administrativas. O teto de saída foi reduzido a 2048 tokens.
-O seletor substitui o antigo override global `GROQ_MODEL`.
+O plano gratuito tem cotas e pode recusar chamadas. A chave não informa ao código
+qual é seu plano: não habilite cobrança se pretende usar apenas a modalidade gratuita.
+O aplicativo não ativa assinatura nem recarga, mas chamadas seguem o plano da conta.
+Configuração presente não significa conexão validada. O teste usa uma chamada
+de ferramenta fictícia e uma resposta final, sem acesso a produtos ou dados da loja.
+Os testes automatizados usam respostas simuladas; não substituem essa validação real.
+As ferramentas administrativas continuam no servidor e restritas ao administrador.
+Erros de limite não provocam tentativas automáticas ou troca de provedor.

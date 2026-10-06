@@ -10,7 +10,7 @@ const InputSchema = z.object({
   modelId: z
     .string()
     .refine((id) => Boolean(findCopilotModel(id)), "Modelo não permitido")
-    .default("groq-120b"),
+    .default("mistral-small"),
   message: z.string().trim().min(1).max(4000),
 });
 
@@ -540,8 +540,8 @@ export const adminAiChat = createServerFn({ method: "POST" })
       .limit(20);
     if (historyError) throw new Error("Não foi possível carregar o histórico");
 
-    const { callGroq } = await import("@/lib/groq.server");
-    const messages: import("@/lib/groq.server").GroqMessage[] = conversationModelHistory(
+    const { callMistral } = await import("@/lib/mistral.server");
+    const messages: import("@/lib/mistral.server").MistralMessage[] = conversationModelHistory(
       history ?? [],
     );
     const { error: saveError } = await context.supabase.from("admin_copilot_messages").insert({
@@ -571,9 +571,9 @@ export const adminAiChat = createServerFn({ method: "POST" })
     };
 
     for (let round = 0; round < 8; round++) {
-      let result: Awaited<ReturnType<typeof callGroq>>;
+      let result: Awaited<ReturnType<typeof callMistral>>;
       try {
-        result = await callGroq({
+        result = await callMistral({
           ...provider,
           system: ADMIN_COPILOT_SYSTEM_PROMPT,
           messages,
@@ -597,7 +597,7 @@ export const adminAiChat = createServerFn({ method: "POST" })
           );
         if (status === 404)
           return respond(
-            "Não há um modelo disponível compatível com esta solicitação (404). No OpenRouter, isso pode ocorrer por disponibilidade, suporte às ferramentas ou configurações de privacidade da conta. Confira essas configurações sem liberar dados que não deseja compartilhar.",
+            "Não há um modelo disponível compatível com esta solicitação (404). Confira se o modelo está disponível para sua conta Mistral em Free mode.",
           );
         if (status === 400 || status === 422)
           return respond(
@@ -622,7 +622,7 @@ export const adminAiChat = createServerFn({ method: "POST" })
 
       if (toolUses.length) {
         messages.push(result.message);
-        const toolResults: import("@/lib/groq.server").GroqMessage[] = [];
+        const toolResults: import("@/lib/mistral.server").MistralMessage[] = [];
         for (const call of toolUses) {
           let toolResult: unknown;
           try {
@@ -670,4 +670,30 @@ export const getAdminCopilotModels = createServerFn({ method: "GET" })
       throw new Error("Acesso não autorizado");
     const { copilotModelAvailability } = await import("@/lib/copilot-provider.server");
     return copilotModelAvailability(process.env);
+  });
+
+export const testAdminCopilotConnection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    if (String(context.claims["email"] ?? "").toLowerCase() !== ADMIN_EMAIL)
+      throw new Error("Acesso não autorizado");
+    const { resolveCopilotProvider } = await import("@/lib/copilot-provider.server");
+    let provider;
+    try {
+      provider = resolveCopilotProvider("mistral-small", process.env);
+    } catch {
+      return {
+        ok: false,
+        message: "Configure MISTRAL_API_KEY no servidor usando uma conta em Free mode.",
+      };
+    }
+    try {
+      const { testMistralConnection } = await import("@/lib/mistral.server");
+      return await testMistralConnection(provider.apiKey);
+    } catch {
+      return {
+        ok: false,
+        message: "A conexão com a Mistral falhou ou demorou demais. Nenhum produto foi alterado.",
+      };
+    }
   });

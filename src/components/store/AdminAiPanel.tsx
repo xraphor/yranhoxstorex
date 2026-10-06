@@ -6,7 +6,11 @@ import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { adminAiChat, getAdminCopilotModels } from "@/lib/admin-ai.functions";
+import {
+  adminAiChat,
+  getAdminCopilotModels,
+  testAdminCopilotConnection,
+} from "@/lib/admin-ai.functions";
 import {
   createAdminConversation,
   getAdminConversation,
@@ -24,8 +28,13 @@ const SUGGESTIONS = [
 
 export function AdminAiPanel() {
   const chat = useServerFn(adminAiChat);
+  const testConnection = useServerFn(testAdminCopilotConnection);
+  const connectionTest = useMutation({
+    mutationFn: () => testConnection(),
+    onError: () => toast.error("Não foi possível testar a conexão."),
+  });
   const queryClient = useQueryClient();
-  const [modelId, setModelId] = useState("groq-120b");
+  const [modelId, setModelId] = useState("mistral-small");
   const listModels = useServerFn(getAdminCopilotModels);
   const modelOptions = useQuery({
     queryKey: ["admin-copilot-models"],
@@ -99,6 +108,7 @@ export function AdminAiPanel() {
   function submit(text: string) {
     const value = text.trim();
     if (
+      connectionTest.isPending ||
       modelUnavailable ||
       !value ||
       value.length > 4000 ||
@@ -137,7 +147,7 @@ export function AdminAiPanel() {
           id="copilot-model"
           className="w-full rounded-md border border-border bg-background p-2 text-sm"
           value={modelId}
-          disabled={send.isPending || modelOptions.isPending}
+          disabled={send.isPending || connectionTest.isPending || modelOptions.isPending}
           onChange={(event) => setModelId(event.target.value)}
         >
           {modelOptions.data?.map((model) => (
@@ -151,6 +161,19 @@ export function AdminAiPanel() {
         {chosenModel && !chosenModel.configured ? (
           <p role="status" className="text-xs text-muted-foreground">
             {chosenModel.reason}
+          </p>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={modelUnavailable || send.isPending || connectionTest.isPending}
+          onClick={() => connectionTest.mutate()}
+        >
+          {connectionTest.isPending ? "Testando conexão..." : "Testar conexão"}
+        </Button>
+        {connectionTest.data ? (
+          <p role="status" className="text-xs text-muted-foreground">
+            {connectionTest.data.message}
           </p>
         ) : null}
         {modelOptions.isError ? (

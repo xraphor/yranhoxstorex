@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { callGroq } from "../src/lib/groq.server.ts";
+import { callMistral } from "../src/lib/mistral.server.ts";
 
 const options = {
   apiKey: "test-placeholder",
-  model: "openai/gpt-oss-120b",
+  model: "mistral-small-latest",
   system: "Administração",
   messages: [{ role: "user" as const, content: "Crie um produto" }],
   tools: [
@@ -12,15 +12,17 @@ const options = {
   ],
 };
 
-test("sends server tool definitions to Groq and preserves tool call IDs", async () => {
+test("sends server tool definitions to Mistral and preserves tool call IDs", async () => {
   const request: typeof fetch = async (url, init) => {
-    assert.equal(url, "https://api.groq.com/openai/v1/chat/completions");
+    assert.equal(url, "https://api.mistral.ai/v1/chat/completions");
     assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer test-placeholder");
     const body = JSON.parse(String(init?.body));
     assert.deepEqual(body.tools, options.tools);
     assert.equal(body.messages[0].role, "system");
     assert.equal(body.parallel_tool_calls, false);
     assert.equal(body.stream, false);
+    assert.equal(body.max_tokens, 2048);
+    assert.ok(!("provider" in body));
     return Response.json({
       choices: [
         {
@@ -39,10 +41,10 @@ test("sends server tool definitions to Groq and preserves tool call IDs", async 
       ],
     });
   };
-  const result = await callGroq(options, request);
+  const result = await callMistral(options, request);
   assert.ok("message" in result);
   assert.equal(result.message.tool_calls?.[0]?.id, "call_1");
-  const followup = await callGroq(
+  const followup = await callMistral(
     {
       ...options,
       messages: [
@@ -84,7 +86,7 @@ test("rejects truncated or malformed completions before executing tools", async 
       ],
     },
   ])
-    assert.deepEqual(await callGroq(options, async () => Response.json(response)), {
+    assert.deepEqual(await callMistral(options, async () => Response.json(response)), {
       error: 502,
       reason: response.choices.length ? "truncated" : "invalid_response",
     });
@@ -92,47 +94,28 @@ test("rejects truncated or malformed completions before executing tools", async 
 
 test("keeps upstream error bodies private and handles refusal", async () => {
   assert.deepEqual(
-    await callGroq(options, async () => new Response("private prompt", { status: 429 })),
+    await callMistral(options, async () => new Response("private prompt", { status: 429 })),
     { error: 429, retryAfter: 0 },
   );
-  const result = await callGroq(options, async () =>
+  const result = await callMistral(options, async () =>
     Response.json({ choices: [{ finish_reason: "content_filter", message: { content: null } }] }),
   );
   assert.ok("message" in result);
   assert.equal(result.refusal, true);
 });
 
-test("reports Retry-After and routes only to free OpenRouter models", async () => {
-  const limited = await callGroq(
-    options,
-    async () => new Response("", { status: 429, headers: { "retry-after": "12" } }),
-  );
-  assert.deepEqual(limited, { error: 429, retryAfter: 12 });
-  await callGroq(
-    {
-      ...options,
-      provider: "openrouter",
-      endpoint: "https://openrouter.ai/api/v1/chat/completions",
-      model: "openrouter/free",
-    },
-    async (url, init) => {
-      assert.equal(url, "https://openrouter.ai/api/v1/chat/completions");
-      const body = JSON.parse(String(init?.body));
-      assert.equal(body.model, "openrouter/free");
-      assert.ok(!("parallel_tool_calls" in body));
-      assert.equal(body.provider.require_parameters, true);
-      assert.deepEqual(body.tools, options.tools);
-      assert.deepEqual(body.provider.max_price, { prompt: 0, completion: 0 });
-      assert.equal(body.max_tokens, 2048);
-      return Response.json({
-        choices: [{ finish_reason: "stop", message: { content: "Resposta" } }],
-      });
-    },
-  );
+test("reports Retry-After without retrying the request", async () => {
+  let calls = 0;
+  const result = await callMistral(options, async () => {
+    calls++;
+    return new Response("", { status: 429, headers: { "retry-after": "12" } });
+  });
+  assert.deepEqual(result, { error: 429, retryAfter: 12 });
+  assert.equal(calls, 1);
 });
 
 test("preserves embedded error codes without exposing provider text or executing partial tools", async () => {
-  const result = await callGroq(options, async () =>
+  const result = await callMistral(options, async () =>
     Response.json({
       error: { code: 404, message: "private prompt and credentials" },
       choices: [{ finish_reason: "tool_calls", message: { content: "partial" } }],
@@ -142,8 +125,49 @@ test("preserves embedded error codes without exposing provider text or executing
 });
 
 test("invalid JSON is reported as an invalid response without exposing its body", async () => {
-  assert.deepEqual(await callGroq(options, async () => new Response("private invalid body")), {
+  assert.deepEqual(await callMistral(options, async () => new Response("private invalid body")), {
     error: 502,
     reason: "invalid_response",
   });
+});
+
+test("connection test validates the tool round trip without executing store tools", async () => {
+  const { testMistralConnection } = await import("../src/lib/mistral.server.ts");
+  let count = 0;
+  const result = await testMistralConnection("test", async (_url, init) => {
+    const body = JSON.parse(String(init?.body));
+    assert.deepEqual(
+      body.tools.map((t: { function: { name: string } }) => t.function.name),
+      ["verificar_conexao"],
+    );
+    count++;
+    if (count === 1)
+      return Response.json({
+        choices: [
+          {
+            finish_reason: "tool_calls",
+            message: {
+              content: null,
+              tool_calls: [
+                {
+                  id: "123456789",
+                  type: "function",
+                  function: { name: "verificar_conexao", arguments: "{}" },
+                },
+              ],
+            },
+          },
+        ],
+      });
+    assert.equal(body.messages.at(-1).tool_call_id, "123456789");
+    return Response.json({ choices: [{ finish_reason: "stop", message: { content: "OK" } }] });
+  });
+  assert.equal(result.ok, true);
+  assert.equal(count, 2);
+  const unsupported = await testMistralConnection("test", async () =>
+    Response.json({
+      choices: [{ finish_reason: "stop", message: { content: "Olá" } }],
+    }),
+  );
+  assert.equal(unsupported.ok, false);
 });
