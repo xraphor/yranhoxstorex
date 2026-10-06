@@ -30,28 +30,53 @@ export async function callGroq(
   options: {
     apiKey: string;
     model: string;
+    endpoint?: string;
+    provider?: string;
     system: string;
     messages: GroqMessage[];
     tools: readonly unknown[];
   },
   request: typeof fetch = fetch,
 ) {
-  const response = await request("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${options.apiKey}`, "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(60000),
-    body: JSON.stringify({
-      model: options.model,
-      messages: [{ role: "system", content: options.system }, ...options.messages],
-      tools: options.tools,
-      tool_choice: "auto",
-      parallel_tool_calls: false,
-      max_completion_tokens: 4096,
-      stream: false,
-    }),
-  });
+  const response = await request(
+    options.endpoint ?? "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        ...(options.apiKey ? { Authorization: `Bearer ${options.apiKey}` } : {}),
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(60000),
+      body: JSON.stringify({
+        model: options.model,
+        messages: [{ role: "system", content: options.system }, ...options.messages],
+        tools: options.tools,
+        tool_choice: "auto",
+        parallel_tool_calls: false,
+        ...(options.provider === "groq" || !options.provider
+          ? { max_completion_tokens: 2048 }
+          : { max_tokens: 2048 }),
+        ...(options.provider === "openrouter"
+          ? { provider: { require_parameters: true, max_price: { prompt: 0, completion: 0 } } }
+          : {}),
+        stream: false,
+      }),
+    },
+  );
   // Do not return or log upstream error bodies, which may contain private prompts.
-  if (!response.ok) return { error: response.status } as const;
+  if (!response.ok) {
+    const retry = response.headers.get("retry-after");
+    const seconds =
+      retry && /^\d+(\.\d+)?$/.test(retry)
+        ? Math.ceil(Number(retry))
+        : retry
+          ? Math.ceil((Date.parse(retry) - Date.now()) / 1000)
+          : 0;
+    return {
+      error: response.status,
+      retryAfter: Number.isFinite(seconds) ? Math.max(0, Math.min(seconds, 86400)) : 0,
+    } as const;
+  }
   const parsed = Completion.safeParse(await response.json());
   if (!parsed.success) return { error: 502 } as const;
   const choice = parsed.data.choices[0]!;

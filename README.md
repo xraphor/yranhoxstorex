@@ -197,3 +197,24 @@ Não use prefixo `VITE_`, não coloque a chave em arquivos versionados e não ex
 O plano gratuito da Groq tem cotas próprias; trocar a IA não elimina custos de hospedagem.
 A integração preserva as ferramentas administrativas e o histórico de conversas.
 Os testes locais usam respostas simuladas; valide a conexão real após configurar o segredo.
+
+## Escolha de modelos
+
+O seletor do Copiloto oferece Groq GPT OSS 120B e 20B (usam `GROQ_API_KEY`),
+OpenRouter gratuito (`OPENROUTER_API_KEY`) e Ollama Qwen 3/Llama 3.1.
+O OpenRouter usa apenas `openrouter/free`, exige suporte aos parâmetros enviados
+e restringe o preço de entrada/saída a zero; sua disponibilidade e cotas variam.
+A escolha feita no painel se aplica à próxima mensagem. O histórico permanece
+na conversa selecionada. As credenciais nunca são devolvidas ao navegador.
+
+Para as opções sem chave, instale os modelos `qwen3:8b` e `llama3.1:8b` em um
+servidor Ollama. Configure `OLLAMA_BASE_URL` com a base compatível OpenAI terminada
+em `/v1`, alcançável pelo servidor da loja. O `localhost` da hospedagem não é seu PC.
+Use HTTPS e acesso restrito para uma conexão remota; `OLLAMA_ACCESS_TOKEN` pode
+ser configurado se um proxy exigir autenticação. Não exponha o Ollama sem proteção.
+A hospedagem continua necessária e o computador/servidor precisa permanecer ligado.
+Não há integração com sites de chat sem API.
+
+Erros 429 mostram o Retry-After do provedor quando disponível, sem repetir
+automaticamente ações administrativas. O teto de saída foi reduzido a 2048 tokens.
+O seletor substitui o antigo override global `GROQ_MODEL`.

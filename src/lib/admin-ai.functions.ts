@@ -2,10 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ADMIN_EMAIL } from "@/lib/store";
+import { findCopilotModel } from "@/lib/copilot-models";
 import { conversationModelHistory } from "@/lib/admin-conversation";
 
 const InputSchema = z.object({
   threadId: z.string().uuid(),
+  modelId: z
+    .string()
+    .refine((id) => Boolean(findCopilotModel(id)), "Modelo não permitido")
+    .default("groq-120b"),
   message: z.string().trim().min(1).max(4000),
 });
 
@@ -508,10 +513,13 @@ export const adminAiChat = createServerFn({ method: "POST" })
       throw new Error("Acesso não autorizado");
     }
 
-    const apiKey = process.env["GROQ_API_KEY"];
-    if (!apiKey) {
+    const { resolveCopilotProvider } = await import("@/lib/copilot-provider.server");
+    let provider: ReturnType<typeof resolveCopilotProvider>;
+    try {
+      provider = resolveCopilotProvider(data.modelId, process.env);
+    } catch (error) {
       return {
-        reply: "Configure GROQ_API_KEY nos segredos do servidor para ativar o Copiloto.",
+        reply: error instanceof Error ? error.message : "Configure o provedor selecionado.",
         actions: [] as string[],
       };
     }
@@ -566,8 +574,7 @@ export const adminAiChat = createServerFn({ method: "POST" })
       let result: Awaited<ReturnType<typeof callGroq>>;
       try {
         result = await callGroq({
-          apiKey,
-          model: process.env["GROQ_MODEL"] || "openai/gpt-oss-120b",
+          ...provider,
           system: ADMIN_COPILOT_SYSTEM_PROMPT,
           messages,
           tools: adminCopilotToolSpecs,
@@ -583,10 +590,12 @@ export const adminAiChat = createServerFn({ method: "POST" })
         if (status === 401) return respond("A chave de acesso da IA foi recusada.");
         if (status === 402 || status === 403)
           return respond(
-            "O serviço de IA está sem créditos ou sem permissão de acesso. Verifique a configuração da Groq.",
+            "O serviço de IA está sem créditos ou sem permissão de acesso. Verifique a configuração do provedor selecionado.",
           );
         if (status === 429)
-          return respond("Muitas mensagens seguidas. Aguarde alguns segundos e tente de novo.");
+          return respond(
+            `O provedor atingiu o limite de uso. ${"retryAfter" in result && result.retryAfter ? `Aguarde cerca de ${result.retryAfter} segundos.` : "Aguarde antes de tentar novamente; a cota pode ser por minuto ou por dia."} Confira as ações já realizadas antes de repetir uma ordem.`,
+          );
         return respond(
           "A IA não respondeu agora. Verifique o histórico e as alterações da loja antes de repetir uma ordem.",
         );
@@ -636,4 +645,13 @@ export const adminAiChat = createServerFn({ method: "POST" })
     return respond(
       "A tarefa ficou longa demais. Confira as ações já realizadas antes de continuar.",
     );
+  });
+
+export const getAdminCopilotModels = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    if (String(context.claims["email"] ?? "").toLowerCase() !== ADMIN_EMAIL)
+      throw new Error("Acesso não autorizado");
+    const { copilotModelAvailability } = await import("@/lib/copilot-provider.server");
+    return copilotModelAvailability(process.env);
   });
