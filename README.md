@@ -1,14 +1,160 @@
-# Welcome to your Lovable project
+# Pixel Vault
+
+Crie uma aplicação web completa de e-commerce digital chamada "yRanhox Store X", focada em venda de produtos digitais (contas, chaves de ativação/keys, itens de jogos, scripts e licenças) com entrega automática pós-pagamento via Pix, visual gamer premium e painel de administração restrito.
+
+
+
+---
+
+
+
+### 1. IDENTIDADE VISUAL & TEMA
+
+- **Nome da Loja:** yRanhox Store X
+
+- **Estilo:** Dark theme moderno gamer/tech (paleta base com fundo cinza escuro/preto `#0b0e14`, tons de cinza grafite para cards `#151922`, e detalhes com neon/accent em roxo elétrico `#8b5cf6` ou ciano brilhante `#06b6d4`).
+
+- **Personalização de Temas:**
+
+  - Crie um seletor visual na interface para o usuário alternar estilos de cor de destaque (ex: Roxo Neon, Ciano Cyber, Verde Esmeralda, Laranja Vulcão).
+
+  - Animações suaves em hover, botões com efeito de brilho sutil (glow) e tipografia moderna (Inter / Rajdhani / Orbitron).
+
+
+
+---
+
+
+
+### 2. AUTENTICAÇÃO E PERMISSÕES (SUPABASE AUTH & RBAC)
+
+- Integração de login/cadastro com Supabase Auth (E-mail + Senha e Login Social/Google).
+
+- **REGRA CRÍTICA DE ADMINISTRAÇÃO:**
+
+  - Apenas e exclusivamente a conta com o e-mail `raphael900001@gmail.com` terá a role de `admin`.
+
+  - Qualquer outro usuário registrado receberá estritamente o papel de `buyer` (comprador).
+
+  - Implementar verificação tanto no front-end quanto nas políticas de segurança de banco (Row Level Security - RLS) para garantir que a rota `/admin` seja acessível unicamente se `auth.jwt() -> email = 'raphael900001@gmail.com'`.
+
+  - Caso qualquer outro usuário tente acessar `/admin`, redirecionar imediatamente para a página inicial com toast: "Acesso não autorizado".
+
+
+
+---
+
+
+
+### 3. CATÁLOGO E EXPERIÊNCIA DO COMPRADOR
+
+- **Página Inicial:**
+
+  - Banner dinâmico com novidades e destaques da yRanhox Store X.
+
+  - Barra de busca rápida em tempo real e filtros por categoria (Jogos, Contas, Keys, Scripts, Métodos).
+
+  - Cards de produto com: Imagem/Thumbnail, Nome, Categoria, Preço original com desconto, Status de estoque ("Em Estoque" / "Esgotado") e botão "Comprar Agora".
+
+- **Página do Produto:**
+
+  - Galeria de imagens, descrição detalhada em Markdown/HTML, tags, termos de garantia e botão de compra instantânea.
+
+- **Painel do Cliente (`/minha-conta` ou `/meus-pedidos`):**
+
+  - Histórico de pedidos realizados.
+
+  - Tela de visualização e cópia do produto digital entregue (ex: botão "Copiar Chave/Login").
+
+
+
+---
+
+
+
+### 4. CHECKOUT E ENTREGA AUTOMÁTICA VIA PIX
+
+- **Fluxo de Pagamento Pix:**
+
+  - Checkout simplificado (1-Click ou modal flutuante).
+
+  - Integração com gateway de pagamento Pix (estrutura pronta para Mercado Pago / Asaas / Efi).
+
+  - Geração dinâmica de QR Code visual e código "Pix Copia e Cola", com contador de expiração (ex: 15 minutos).
+
+- **Sistema de Entrega Instantânea (Edge Function / Webhook):**
+
+  - O sistema deve monitorar a confirmação do pagamento via Webhook.
+
+  - No momento em que o status mudar para "Aprovado/Pago":
+
+    1. O sistema reserva e retira automaticamente 1 item/estoque da tabela de conteúdos do produto (`product_stock_items`).
+
+    2. O conteúdo digital (login, chave, link privado ou texto de ativação) é liberado imediatamente na tela do cliente.
+
+    3. O cliente recebe uma confirmação na tela e o item fica salvo permanentemente no painel dele.
+
+    4. Notificação visual de sucesso com som ou animação de confetes.
+
+
+
+---
+
+
+
+### 5. PAINEL ADMINISTRATIVO EXCLUSIVO (`/admin`)
+
+(Apenas para `raphael900001@gmail.com`)
+
+- **Dashboard / Visão Geral:**
+
+  - Faturamento total (diário, semanal e mensal via Pix).
+
+  - Total de pedidos aprovados, pendentes e cancelados.
+
+  - Alerta de produtos com estoque baixo.
+
+- **Gerenciamento de Produtos:**
+
+  - Criar, editar e excluir produtos (Título, Descrição, Preço, Categoria, Imagens).
+
+  - **Gerenciador de Estoque Digital:** Campo para colar várias keys/linhas de dados de uma vez só (ex: 1 chave por linha) que serão entregues uma a uma conforme as vendas ocorrem.
+
+- **Gestão de Pedidos:**
+
+  - Listagem completa de transações, status do Pix, e-mail do comprador e produto entregue, com opção de reenviar ou reembolsar se necessário.
+
+- **Configurações da Loja:**
+
+  - Edição de banners, avisos no topo do site, chaves de API do gateway de pagamento Pix e links de redes sociais/suporte.
+
+
+
+---
+
+
+
+### 6. TECNOLOGIA E BANCO DE DADOS
+
+- React + Tailwind CSS + Lucide Icons + Shadcn UI para interface responsiva (Mobile first e Desktop).
+
+- Supabase (PostgreSQL) com tabelas: `profiles`, `products`, `product_stock_items`, `orders`, `ord
+
+er_items`.
+
+- Row Level Security (RLS) habilitado em todas as tabelas.
 
 This project was built with [Lovable](https://lovable.dev).
 
+**Live app**: https://yranhoxstorex.lovable.app
+
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/da709d7d-77e9-4b74-ac83-e8e037009f8a).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +166,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
