@@ -5,10 +5,10 @@ const ToolCall = z.object({
   type: z.literal("function"),
   function: z.object({ name: z.string().min(1), arguments: z.string() }),
 });
-export type MistralToolCall = z.infer<typeof ToolCall>;
-export type MistralMessage =
+export type OllamaToolCall = z.infer<typeof ToolCall>;
+export type OllamaMessage =
   | { role: "system" | "user"; content: string }
-  | { role: "assistant"; content: string | null; tool_calls?: MistralToolCall[] }
+  | { role: "assistant"; content: string | null; tool_calls?: OllamaToolCall[] }
   | { role: "tool"; tool_call_id: string; content: string };
 
 const Completion = z.object({
@@ -26,18 +26,20 @@ const Completion = z.object({
     .min(1),
 });
 
-export async function callMistral(
+export async function callOllama(
   options: {
     apiKey: string;
+    endpoint: string;
     model: string;
     system: string;
-    messages: MistralMessage[];
+    messages: OllamaMessage[];
     tools: readonly unknown[];
   },
   request: typeof fetch = fetch,
 ) {
-  const response = await request("https://api.mistral.ai/v1/chat/completions", {
+  const response = await request(options.endpoint, {
     method: "POST",
+    redirect: "error",
     headers: {
       ...(options.apiKey ? { Authorization: `Bearer ${options.apiKey}` } : {}),
       "Content-Type": "application/json",
@@ -48,7 +50,6 @@ export async function callMistral(
       messages: [{ role: "system", content: options.system }, ...options.messages],
       tools: options.tools,
       tool_choice: "auto",
-      parallel_tool_calls: false,
       max_tokens: 2048,
       stream: false,
     }),
@@ -90,10 +91,12 @@ export async function callMistral(
   };
 }
 
-export async function testMistralConnection(apiKey: string, request: typeof fetch = fetch) {
+export async function testOllamaConnection(
+  provider: { apiKey: string; endpoint: string; model: string },
+  request: typeof fetch = fetch,
+) {
   const options = {
-    apiKey,
-    model: "mistral-small-latest",
+    ...provider,
     system:
       "Teste de integração. Chame verificar_conexao com {}. Após receber o resultado, responda OK.",
     messages: [{ role: "user" as const, content: "Execute o teste de conexão." }],
@@ -108,11 +111,11 @@ export async function testMistralConnection(apiKey: string, request: typeof fetc
       },
     ],
   };
-  const first = await callMistral(options, request);
+  const first = await callOllama(options, request);
   if ("error" in first)
     return {
       ok: false,
-      message: `Mistral recusou o teste (código ${first.error}). Confira a chave, o Free mode e a cota da conta.`,
+      message: `Ollama recusou o teste (código ${first.error}). Confira se o PC, o Ollama e a conexão protegida estão funcionando.`,
     };
   const calls = first.message.tool_calls ?? [];
   const call = calls[0];
@@ -129,7 +132,7 @@ export async function testMistralConnection(apiKey: string, request: typeof fetc
   }
   if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).length)
     return { ok: false, message: "A IA retornou argumentos inválidos no teste." };
-  const final = await callMistral(
+  const final = await callOllama(
     {
       ...options,
       messages: [
@@ -157,6 +160,6 @@ export async function testMistralConnection(apiKey: string, request: typeof fetc
   return {
     ok: true,
     message:
-      "Conexão e ferramentas testadas agora. Nenhum dado da loja foi alterado. As cotas do provedor continuam valendo.",
+      "Conexão e ferramentas testadas agora. Nenhum dado da loja foi alterado. O PC precisa permanecer ligado.",
   };
 }

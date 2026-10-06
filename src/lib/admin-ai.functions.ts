@@ -10,7 +10,7 @@ const InputSchema = z.object({
   modelId: z
     .string()
     .refine((id) => Boolean(findCopilotModel(id)), "Modelo não permitido")
-    .default("mistral-small"),
+    .default("ollama-qwen"),
   message: z.string().trim().min(1).max(4000),
 });
 
@@ -540,8 +540,8 @@ export const adminAiChat = createServerFn({ method: "POST" })
       .limit(20);
     if (historyError) throw new Error("Não foi possível carregar o histórico");
 
-    const { callMistral } = await import("@/lib/mistral.server");
-    const messages: import("@/lib/mistral.server").MistralMessage[] = conversationModelHistory(
+    const { callOllama } = await import("@/lib/ollama.server");
+    const messages: import("@/lib/ollama.server").OllamaMessage[] = conversationModelHistory(
       history ?? [],
     );
     const { error: saveError } = await context.supabase.from("admin_copilot_messages").insert({
@@ -571,9 +571,9 @@ export const adminAiChat = createServerFn({ method: "POST" })
     };
 
     for (let round = 0; round < 8; round++) {
-      let result: Awaited<ReturnType<typeof callMistral>>;
+      let result: Awaited<ReturnType<typeof callOllama>>;
       try {
-        result = await callMistral({
+        result = await callOllama({
           ...provider,
           system: ADMIN_COPILOT_SYSTEM_PROMPT,
           messages,
@@ -597,7 +597,7 @@ export const adminAiChat = createServerFn({ method: "POST" })
           );
         if (status === 404)
           return respond(
-            "Não há um modelo disponível compatível com esta solicitação (404). Confira se o modelo está disponível para sua conta Mistral em Free mode.",
+            "Não há um modelo disponível compatível com esta solicitação (404). Confira se qwen3:8b está instalado no Ollama do PC.",
           );
         if (status === 400 || status === 422)
           return respond(
@@ -622,7 +622,7 @@ export const adminAiChat = createServerFn({ method: "POST" })
 
       if (toolUses.length) {
         messages.push(result.message);
-        const toolResults: import("@/lib/mistral.server").MistralMessage[] = [];
+        const toolResults: import("@/lib/ollama.server").OllamaMessage[] = [];
         for (const call of toolUses) {
           let toolResult: unknown;
           try {
@@ -680,20 +680,20 @@ export const testAdminCopilotConnection = createServerFn({ method: "POST" })
     const { resolveCopilotProvider } = await import("@/lib/copilot-provider.server");
     let provider;
     try {
-      provider = resolveCopilotProvider("mistral-small", process.env);
+      provider = resolveCopilotProvider("ollama-qwen", process.env);
     } catch {
       return {
         ok: false,
-        message: "Configure MISTRAL_API_KEY no servidor usando uma conta em Free mode.",
+        message: "Configure a conexão protegida com o PC: OLLAMA_BASE_URL e OLLAMA_ACCESS_TOKEN.",
       };
     }
     try {
-      const { testMistralConnection } = await import("@/lib/mistral.server");
-      return await testMistralConnection(provider.apiKey);
+      const { testOllamaConnection } = await import("@/lib/ollama.server");
+      return await testOllamaConnection(provider);
     } catch {
       return {
         ok: false,
-        message: "A conexão com a Mistral falhou ou demorou demais. Nenhum produto foi alterado.",
+        message: "A conexão com a Ollama falhou ou demorou demais. Nenhum produto foi alterado.",
       };
     }
   });
