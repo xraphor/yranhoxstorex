@@ -52,7 +52,7 @@ export async function callGroq(
         messages: [{ role: "system", content: options.system }, ...options.messages],
         tools: options.tools,
         tool_choice: "auto",
-        parallel_tool_calls: false,
+        ...(options.provider === "openrouter" ? {} : { parallel_tool_calls: false }),
         ...(options.provider === "groq" || !options.provider
           ? { max_completion_tokens: 2048 }
           : { max_tokens: 2048 }),
@@ -77,11 +77,19 @@ export async function callGroq(
       retryAfter: Number.isFinite(seconds) ? Math.max(0, Math.min(seconds, 86400)) : 0,
     } as const;
   }
-  const parsed = Completion.safeParse(await response.json());
-  if (!parsed.success) return { error: 502 } as const;
+  const body: unknown = await response.json().catch(() => null);
+  // Some providers report generation failures inside an HTTP 200 response.
+  const upstreamError = z
+    .object({
+      error: z.object({ code: z.number().int().min(400).max(599) }),
+    })
+    .safeParse(body);
+  if (upstreamError.success) return { error: upstreamError.data.error.code } as const;
+  const parsed = Completion.safeParse(body);
+  if (!parsed.success) return { error: 502, reason: "invalid_response" } as const;
   const choice = parsed.data.choices[0]!;
   const calls = choice.message.tool_calls ?? [];
-  if (choice.finish_reason === "length") return { error: 502 } as const;
+  if (choice.finish_reason === "length") return { error: 502, reason: "truncated" } as const;
   return {
     message: {
       role: "assistant" as const,

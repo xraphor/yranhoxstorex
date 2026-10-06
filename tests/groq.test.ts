@@ -84,7 +84,10 @@ test("rejects truncated or malformed completions before executing tools", async 
       ],
     },
   ])
-    assert.deepEqual(await callGroq(options, async () => Response.json(response)), { error: 502 });
+    assert.deepEqual(await callGroq(options, async () => Response.json(response)), {
+      error: 502,
+      reason: response.choices.length ? "truncated" : "invalid_response",
+    });
 });
 
 test("keeps upstream error bodies private and handles refusal", async () => {
@@ -116,6 +119,9 @@ test("reports Retry-After and routes only to free OpenRouter models", async () =
       assert.equal(url, "https://openrouter.ai/api/v1/chat/completions");
       const body = JSON.parse(String(init?.body));
       assert.equal(body.model, "openrouter/free");
+      assert.ok(!("parallel_tool_calls" in body));
+      assert.equal(body.provider.require_parameters, true);
+      assert.deepEqual(body.tools, options.tools);
       assert.deepEqual(body.provider.max_price, { prompt: 0, completion: 0 });
       assert.equal(body.max_tokens, 2048);
       return Response.json({
@@ -123,4 +129,21 @@ test("reports Retry-After and routes only to free OpenRouter models", async () =
       });
     },
   );
+});
+
+test("preserves embedded error codes without exposing provider text or executing partial tools", async () => {
+  const result = await callGroq(options, async () =>
+    Response.json({
+      error: { code: 404, message: "private prompt and credentials" },
+      choices: [{ finish_reason: "tool_calls", message: { content: "partial" } }],
+    }),
+  );
+  assert.deepEqual(result, { error: 404 });
+});
+
+test("invalid JSON is reported as an invalid response without exposing its body", async () => {
+  assert.deepEqual(await callGroq(options, async () => new Response("private invalid body")), {
+    error: 502,
+    reason: "invalid_response",
+  });
 });
