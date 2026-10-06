@@ -4,27 +4,31 @@ import {
   resolveCopilotProvider,
   copilotModelAvailability,
 } from "../src/lib/copilot-provider.server.ts";
-test("removed providers cannot be called even with their old keys configured", () => {
-  for (const id of ["groq-120b", "groq-20b", "openrouter-free", "ollama-qwen", "https://evil.test"])
-    assert.throws(
-      () => resolveCopilotProvider(id, { GROQ_API_KEY: "test", OPENROUTER_API_KEY: "test" }),
-      /Modelo não permitido/,
-    );
+test("old providers are rejected and the PC connection starts unconfigured", () => {
+  for (const id of ["mistral-small", "groq-120b", "openrouter-free"])
+    assert.throws(() => resolveCopilotProvider(id, {}), /Modelo não permitido/);
+  assert.equal(copilotModelAvailability({})[0].configured, false);
 });
-test("Mistral requires its own server credential and never exposes it in availability", () => {
-  assert.throws(() => resolveCopilotProvider("mistral-small", {}), /MISTRAL_API_KEY/);
-  assert.throws(
-    () => resolveCopilotProvider("mistral-small", { MISTRAL_API_KEY: "  " }),
-    /MISTRAL_API_KEY/,
-  );
+test("requires protected HTTPS and keeps URL and token server-side", () => {
+  const env = {
+    OLLAMA_BASE_URL: "https://pc.example/v1",
+    OLLAMA_ACCESS_TOKEN: "private-test-token",
+  };
   assert.equal(
-    resolveCopilotProvider("mistral-small", { MISTRAL_API_KEY: "test" }).model,
-    "mistral-small-latest",
+    resolveCopilotProvider("ollama-qwen", env).endpoint,
+    "https://pc.example/v1/chat/completions",
   );
-  const pending = copilotModelAvailability({});
-  assert.equal(pending.length, 1);
-  assert.equal(pending[0].configured, false);
-  const ready = copilotModelAvailability({ MISTRAL_API_KEY: "private-test-secret" });
-  assert.equal(ready[0].configured, true);
-  assert.ok(!JSON.stringify(ready).includes("private-test-secret"));
+  for (const url of [
+    "http://pc.example/v1",
+    "https://user:pass@pc.example/v1",
+    "https://pc.example/v1?key=x",
+    "https://pc.example/api",
+  ])
+    assert.throws(() => resolveCopilotProvider("ollama-qwen", { ...env, OLLAMA_BASE_URL: url }));
+  assert.throws(() =>
+    resolveCopilotProvider("ollama-qwen", { OLLAMA_BASE_URL: env.OLLAMA_BASE_URL }),
+  );
+  const publicConfig = JSON.stringify(copilotModelAvailability(env));
+  assert.ok(!publicConfig.includes(env.OLLAMA_ACCESS_TOKEN));
+  assert.ok(!publicConfig.includes("pc.example"));
 });

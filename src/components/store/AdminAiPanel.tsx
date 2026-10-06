@@ -34,7 +34,7 @@ export function AdminAiPanel() {
     onError: () => toast.error("Não foi possível testar a conexão."),
   });
   const queryClient = useQueryClient();
-  const [modelId, setModelId] = useState("mistral-small");
+  const [modelId, setModelId] = useState("ollama-qwen");
   const listModels = useServerFn(getAdminCopilotModels);
   const modelOptions = useQuery({
     queryKey: ["admin-copilot-models"],

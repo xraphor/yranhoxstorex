@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { callMistral } from "../src/lib/mistral.server.ts";
+import { callOllama } from "../src/lib/ollama.server.ts";
 
 const options = {
   apiKey: "test-placeholder",
-  model: "mistral-small-latest",
+  endpoint: "https://pc.example/v1/chat/completions",
+  model: "qwen3:8b",
   system: "Administração",
   messages: [{ role: "user" as const, content: "Crie um produto" }],
   tools: [
@@ -12,14 +13,14 @@ const options = {
   ],
 };
 
-test("sends server tool definitions to Mistral and preserves tool call IDs", async () => {
+test("sends server tool definitions to Ollama and preserves tool call IDs", async () => {
   const request: typeof fetch = async (url, init) => {
-    assert.equal(url, "https://api.mistral.ai/v1/chat/completions");
+    assert.equal(url, "https://pc.example/v1/chat/completions");
     assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer test-placeholder");
     const body = JSON.parse(String(init?.body));
     assert.deepEqual(body.tools, options.tools);
     assert.equal(body.messages[0].role, "system");
-    assert.equal(body.parallel_tool_calls, false);
+    assert.equal(init?.redirect, "error");
     assert.equal(body.stream, false);
     assert.equal(body.max_tokens, 2048);
     assert.ok(!("provider" in body));
@@ -41,10 +42,10 @@ test("sends server tool definitions to Mistral and preserves tool call IDs", asy
       ],
     });
   };
-  const result = await callMistral(options, request);
+  const result = await callOllama(options, request);
   assert.ok("message" in result);
   assert.equal(result.message.tool_calls?.[0]?.id, "call_1");
-  const followup = await callMistral(
+  const followup = await callOllama(
     {
       ...options,
       messages: [
@@ -86,7 +87,7 @@ test("rejects truncated or malformed completions before executing tools", async 
       ],
     },
   ])
-    assert.deepEqual(await callMistral(options, async () => Response.json(response)), {
+    assert.deepEqual(await callOllama(options, async () => Response.json(response)), {
       error: 502,
       reason: response.choices.length ? "truncated" : "invalid_response",
     });
@@ -94,10 +95,10 @@ test("rejects truncated or malformed completions before executing tools", async 
 
 test("keeps upstream error bodies private and handles refusal", async () => {
   assert.deepEqual(
-    await callMistral(options, async () => new Response("private prompt", { status: 429 })),
+    await callOllama(options, async () => new Response("private prompt", { status: 429 })),
     { error: 429, retryAfter: 0 },
   );
-  const result = await callMistral(options, async () =>
+  const result = await callOllama(options, async () =>
     Response.json({ choices: [{ finish_reason: "content_filter", message: { content: null } }] }),
   );
   assert.ok("message" in result);
@@ -106,7 +107,7 @@ test("keeps upstream error bodies private and handles refusal", async () => {
 
 test("reports Retry-After without retrying the request", async () => {
   let calls = 0;
-  const result = await callMistral(options, async () => {
+  const result = await callOllama(options, async () => {
     calls++;
     return new Response("", { status: 429, headers: { "retry-after": "12" } });
   });
@@ -115,7 +116,7 @@ test("reports Retry-After without retrying the request", async () => {
 });
 
 test("preserves embedded error codes without exposing provider text or executing partial tools", async () => {
-  const result = await callMistral(options, async () =>
+  const result = await callOllama(options, async () =>
     Response.json({
       error: { code: 404, message: "private prompt and credentials" },
       choices: [{ finish_reason: "tool_calls", message: { content: "partial" } }],
@@ -125,16 +126,16 @@ test("preserves embedded error codes without exposing provider text or executing
 });
 
 test("invalid JSON is reported as an invalid response without exposing its body", async () => {
-  assert.deepEqual(await callMistral(options, async () => new Response("private invalid body")), {
+  assert.deepEqual(await callOllama(options, async () => new Response("private invalid body")), {
     error: 502,
     reason: "invalid_response",
   });
 });
 
 test("connection test validates the tool round trip without executing store tools", async () => {
-  const { testMistralConnection } = await import("../src/lib/mistral.server.ts");
+  const { testOllamaConnection } = await import("../src/lib/ollama.server.ts");
   let count = 0;
-  const result = await testMistralConnection("test", async (_url, init) => {
+  const result = await testOllamaConnection(options, async (_url, init) => {
     const body = JSON.parse(String(init?.body));
     assert.deepEqual(
       body.tools.map((t: { function: { name: string } }) => t.function.name),
@@ -164,7 +165,7 @@ test("connection test validates the tool round trip without executing store tool
   });
   assert.equal(result.ok, true);
   assert.equal(count, 2);
-  const unsupported = await testMistralConnection("test", async () =>
+  const unsupported = await testOllamaConnection(options, async () =>
     Response.json({
       choices: [{ finish_reason: "stop", message: { content: "Olá" } }],
     }),

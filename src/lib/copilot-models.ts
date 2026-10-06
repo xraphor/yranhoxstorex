@@ -1,11 +1,11 @@
 export const COPILOT_MODELS = [
   {
-    id: "mistral-small",
-    label: "Mistral Small",
-    provider: "mistral",
-    model: "mistral-small-latest",
+    id: "ollama-qwen",
+    label: "Qwen 3 · seu PC",
+    provider: "ollama",
+    model: "qwen3:8b",
     description:
-      "Use uma conta Mistral em Free mode. Há limites de uso; teste a conexão antes de começar.",
+      "Requer Ollama com Qwen 3 instalado e conexão protegida. O PC precisa permanecer ligado.",
   },
 ] as const;
 export type CopilotModelId = (typeof COPILOT_MODELS)[number]["id"];

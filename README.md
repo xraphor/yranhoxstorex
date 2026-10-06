@@ -185,25 +185,27 @@ npm run build
 ```
 
 A validação completa com o administrador exige as configurações de servidor do
-Supabase e `MISTRAL_API_KEY`. Esta etapa implementa histórico por conversa; memória
+Supabase e `OLLAMA_ACCESS_TOKEN`. Esta etapa implementa histórico por conversa; memória
 entre conversas e anexos de mídia continuam pendentes no roadmap.
 
-## Provedor externo do Copiloto
+## Copiloto no PC com Ollama
 
-O Copiloto usa Mistral Small diretamente. Groq, OpenRouter e o gateway de IA do
-Lovable não são usados nem como fallback. As conversas existentes são preservadas.
+O único provedor é Ollama com qwen3:8b. Mistral, Groq e OpenRouter foram removidos.
+A integração fica pendente até configurar o PC; não é uma IA hospedada pela loja.
 
-1. Crie uma conta em https://console.mistral.ai/ e mantenha o **Free mode**.
-2. Gere uma chave e salve como MISTRAL_API_KEY nos segredos do runtime de servidor.
-   Não use prefixo VITE_, nem envie a chave ao navegador ou ao Git.
-3. Publique a atualização e use **Testar conexão** no Copiloto.
-4. Teste primeiro um pedido de leitura: “Liste os produtos da loja”.
+- Instale Ollama e um modelo compatível com ferramentas. O padrão atual é qwen3:8b.
+  Confirme RAM/GPU antes de baixar; o modelo poderá ser ajustado conforme o hardware.
+- Para a loja publicada, configure um proxy HTTPS protegido que encaminhe ao Ollama
+  local. O proxy deve validar Authorization: Bearer antes de aceitar qualquer chamada.
+  O Ollama local não valida esse token por si só. Não exponha sua porta diretamente.
+- Configure OLLAMA_BASE_URL com a URL protegida terminada em /v1 e
+  OLLAMA_ACCESS_TOKEN com o token exigido pelo proxy, apenas nos segredos do servidor.
+  Nenhum token ou endereço remoto é retornado ao cliente.
+- Localhost na hospedagem aponta para a hospedagem, não para o PC do administrador.
+- Publique e use Testar conexão. O teste valida ferramentas sem acessar o estoque.
+- O PC, modelo e conexão precisam permanecer ativos para uso inclusive pelo celular.
 
-O plano gratuito tem cotas e pode recusar chamadas. A chave não informa ao código
-qual é seu plano: não habilite cobrança se pretende usar apenas a modalidade gratuita.
-O aplicativo não ativa assinatura nem recarga, mas chamadas seguem o plano da conta.
-Configuração presente não significa conexão validada. O teste usa uma chamada
-de ferramenta fictícia e uma resposta final, sem acesso a produtos ou dados da loja.
-Os testes automatizados usam respostas simuladas; não substituem essa validação real.
-As ferramentas administrativas continuam no servidor e restritas ao administrador.
-Erros de limite não provocam tentativas automáticas ou troca de provedor.
+A integração não cobra tokens de um provedor; há consumo de energia e internet.
+Hospedagem e serviço de conexão têm suas próprias condições.
+Validação automatizada usa respostas simuladas. Instalação, proxy e teste real no PC
+ainda são necessários. Histórico e restrição de administrador são preservados.
