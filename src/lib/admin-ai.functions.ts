@@ -2,14 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ADMIN_EMAIL } from "@/lib/store";
-
-const MessageSchema = z.object({
-  role: z.enum(["user", "assistant"]),
-  content: z.string().min(1).max(4000),
-});
+import { conversationModelHistory } from "@/lib/admin-conversation";
 
 const InputSchema = z.object({
-  messages: z.array(MessageSchema).min(1).max(40),
+  threadId: z.string().uuid(),
+  message: z.string().trim().min(1).max(4000),
 });
 
 export const ADMIN_COPILOT_SYSTEM_PROMPT = `Você é o Copiloto da yRanhox Store X, o assistente administrativo do dono da loja (loja de produtos digitais: contas, keys, scripts, itens de jogos, métodos).
@@ -203,7 +200,10 @@ export const adminCopilotToolSpecs = [
         type: "object",
         properties: {
           name: { type: "string", description: "Nome do tema, ex: Cyberpunk Amarelo" },
-          primary: { type: "string", description: "Cor de destaque neon (botões, preços, brilho), ex: #facc15" },
+          primary: {
+            type: "string",
+            description: "Cor de destaque neon (botões, preços, brilho), ex: #facc15",
+          },
           background: { type: "string", description: "Cor de fundo da página, ex: #0b0b10" },
           card: { type: "string", description: "Cor dos cards e painéis, ex: #16161f" },
           border: { type: "string", description: "Cor das bordas (opcional)" },
@@ -241,7 +241,10 @@ export const adminCopilotToolSpecs = [
       parameters: {
         type: "object",
         properties: {
-          status: { type: "string", enum: ["pending", "awaiting_confirmation", "paid", "cancelled"] },
+          status: {
+            type: "string",
+            enum: ["pending", "awaiting_confirmation", "paid", "cancelled"],
+          },
         },
         additionalProperties: false,
       },
@@ -390,7 +393,10 @@ export async function runAdminCopilotTool(name: string, args: Json) {
     }
     case "criar_tema": {
       const hex = /^#[0-9a-fA-F]{6}$/;
-      const pick = (k: string) => (typeof args[k] === "string" && hex.test(args[k] as string) ? (args[k] as string) : undefined);
+      const pick = (k: string) =>
+        typeof args[k] === "string" && hex.test(args[k] as string)
+          ? (args[k] as string)
+          : undefined;
       const theme = {
         name: String(args["name"] ?? "Tema personalizado").slice(0, 60),
         primary: pick("primary"),
@@ -400,7 +406,10 @@ export async function runAdminCopilotTool(name: string, args: Json) {
         ...(pick("foreground") ? { foreground: pick("foreground") } : {}),
       };
       if (!theme.primary || !theme.background || !theme.card)
-        return { ok: false, motivo: "cores inválidas: use hex #RRGGBB em primary, background e card" };
+        return {
+          ok: false,
+          motivo: "cores inválidas: use hex #RRGGBB em primary, background e card",
+        };
       const { error } = await supabaseAdmin
         .from("store_settings")
         .update({ accent: "custom", custom_theme: theme })
@@ -574,8 +583,10 @@ async function callClaude(apiKey: string, messages: ClaudeMessage[]) {
       if (cb.type === "text") blocks[i] = { type: "text", text: "" };
       else if (cb.type === "tool_use")
         blocks[i] = { type: "tool_use", id: cb.id ?? "", name: cb.name ?? "", input: {} };
-      else if (cb.type === "thinking") blocks[i] = { type: "thinking", thinking: "", signature: "" };
-      else if (cb.type === "redacted_thinking") blocks[i] = { type: "redacted_thinking", data: cb.data ?? "" };
+      else if (cb.type === "thinking")
+        blocks[i] = { type: "thinking", thinking: "", signature: "" };
+      else if (cb.type === "redacted_thinking")
+        blocks[i] = { type: "redacted_thinking", data: cb.data ?? "" };
     }
     if (event.type === "content_block_delta" && event.delta) {
       const block = blocks[i];
@@ -584,10 +595,13 @@ async function callClaude(apiKey: string, messages: ClaudeMessage[]) {
       if (d.type === "text_delta" && block.type === "text") block.text += d.text ?? "";
       if (d.type === "input_json_delta" && block.type === "tool_use")
         jsonAcc[i] = (jsonAcc[i] ?? "") + (d.partial_json ?? "");
-      if (d.type === "thinking_delta" && block.type === "thinking") block.thinking += d.thinking ?? "";
-      if (d.type === "signature_delta" && block.type === "thinking") block.signature += d.signature ?? "";
+      if (d.type === "thinking_delta" && block.type === "thinking")
+        block.thinking += d.thinking ?? "";
+      if (d.type === "signature_delta" && block.type === "thinking")
+        block.signature += d.signature ?? "";
     }
-    if (event.type === "message_delta" && event.delta?.stop_reason) stopReason = event.delta.stop_reason;
+    if (event.type === "message_delta" && event.delta?.stop_reason)
+      stopReason = event.delta.stop_reason;
   };
 
   for (;;) {
@@ -628,35 +642,84 @@ export const adminAiChat = createServerFn({ method: "POST" })
 
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) {
-      return { reply: "O assistente está sem chave de acesso configurada.", actions: [] as string[] };
+      return {
+        reply: "O assistente está sem chave de acesso configurada.",
+        actions: [] as string[],
+      };
     }
 
-    const messages: ClaudeMessage[] = data.messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+    const { data: thread, error: threadError } = await context.supabase
+      .from("admin_copilot_threads")
+      .select("id")
+      .eq("id", data.threadId)
+      .eq("user_id", context.userId)
+      .single();
+    if (threadError || !thread) throw new Error("Conversa não encontrada");
+
+    const { data: history, error: historyError } = await context.supabase
+      .from("admin_copilot_messages")
+      .select("role, parts, actions")
+      .eq("thread_id", thread.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (historyError) throw new Error("Não foi possível carregar o histórico");
+
+    const messages: ClaudeMessage[] = conversationModelHistory(history ?? []);
+    const { error: saveError } = await context.supabase.from("admin_copilot_messages").insert({
+      thread_id: thread.id,
+      user_id: context.userId,
+      role: "user",
+      parts: [{ type: "text", text: data.message }],
+    });
+    if (saveError) throw new Error("Não foi possível salvar a mensagem");
+    messages.push({ role: "user", content: data.message });
     const actions: string[] = [];
 
+    const respond = async (reply: string) => {
+      const { error } = await context.supabase.from("admin_copilot_messages").insert({
+        thread_id: thread.id,
+        user_id: context.userId,
+        role: "assistant",
+        parts: [{ type: "text", text: reply }],
+        actions,
+      });
+      // Never ask the owner to repeat an operation that already ran just because saving failed.
+      const { error: updateError } = await context.supabase
+        .from("admin_copilot_threads")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", thread.id);
+      return { reply, actions, historySaved: !error && !updateError };
+    };
+
     for (let round = 0; round < 8; round++) {
-      const result = await callClaude(apiKey, messages);
+      let result: Awaited<ReturnType<typeof callClaude>>;
+      try {
+        result = await callClaude(apiKey, messages);
+      } catch {
+        return respond(
+          "A conexão com a IA foi interrompida. Confira as ações já realizadas antes de repetir uma ordem.",
+        );
+      }
 
       if ("error" in result) {
         const status = result.error;
-        if (status === 401) return { reply: "A chave de acesso da IA foi recusada.", actions };
+        if (status === 401) return respond("A chave de acesso da IA foi recusada.");
         if (status === 402 || status === 403)
-          return {
-            reply: "Os créditos de IA da loja acabaram por agora. Eles renovam todo mês — tente de novo em breve.",
-            actions,
-          };
+          return respond(
+            "O serviço de IA está sem créditos ou sem permissão de acesso. Verifique a configuração no Lovable.",
+          );
         if (status === 429)
-          return { reply: "Muitas mensagens seguidas. Aguarde alguns segundos e tente de novo.", actions };
-        return { reply: "A IA não respondeu agora. Tente de novo.", actions };
+          return respond("Muitas mensagens seguidas. Aguarde alguns segundos e tente de novo.");
+        return respond(
+          "A IA não respondeu agora. Verifique o histórico e as alterações da loja antes de repetir uma ordem.",
+        );
       }
 
       const blocks = result.blocks;
-      if (result.stopReason === "refusal")
-        return { reply: "A IA recusou esse pedido.", actions };
-      const toolUses = blocks.filter((b): b is Extract<ClaudeBlock, { type: "tool_use" }> => b.type === "tool_use");
+      if (result.stopReason === "refusal") return respond("A IA recusou esse pedido.");
+      const toolUses = blocks.filter(
+        (b): b is Extract<ClaudeBlock, { type: "tool_use" }> => b.type === "tool_use",
+      );
 
       if (toolUses.length) {
         messages.push({ role: "assistant", content: blocks });
@@ -665,7 +728,14 @@ export const adminAiChat = createServerFn({ method: "POST" })
           let toolResult: unknown;
           try {
             toolResult = await runAdminCopilotTool(call.name, call.input);
-            actions.push(call.name);
+            if (!(
+              toolResult &&
+              typeof toolResult === "object" &&
+              "ok" in toolResult &&
+              toolResult.ok === false
+            )) {
+              actions.push(call.name);
+            }
           } catch (error) {
             toolResult = { erro: error instanceof Error ? error.message : "falha ao executar" };
           }
@@ -684,8 +754,12 @@ export const adminAiChat = createServerFn({ method: "POST" })
         .map((b) => b.text)
         .join("")
         .trim();
-      return { reply: text || "Feito!", actions };
+      return respond(
+        text || "A IA encerrou sem uma resposta em texto. Confira as ações da conversa.",
+      );
     }
 
-    return { reply: "A tarefa ficou longa demais. Tente dividir o pedido.", actions };
+    return respond(
+      "A tarefa ficou longa demais. Confira as ações já realizadas antes de continuar.",
+    );
   });

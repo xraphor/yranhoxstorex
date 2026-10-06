@@ -1,14 +1,19 @@
-import { useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { Loader2, Plus, Send, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { adminAiChat } from "@/lib/admin-ai.functions";
+import {
+  createAdminConversation,
+  getAdminConversation,
+  listAdminConversations,
+} from "@/lib/admin-conversations.functions";
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
+type ChatMessage = { role: "user" | "assistant"; content: string; actions?: string[] };
 
 const SUGGESTIONS = [
   "Cria uma Conta Steam com 50 jogos por 49,90 com garantia de 7 dias",
@@ -21,40 +26,91 @@ export function AdminAiPanel() {
   const chat = useServerFn(adminAiChat);
   const queryClient = useQueryClient();
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content:
-        "Oi, chefe! 👊 Sou o Copiloto da yRanhox Store X. Me manda a ordem: criar produtos, colocar estoque, mudar o aviso da loja, escrever anúncios, ver faturamento ou aprovar pedidos.",
-    },
-  ]);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [optimisticMessage, setOptimisticMessage] = useState<string | null>(null);
+  const [unsavedReply, setUnsavedReply] = useState<ChatMessage | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const listConversations = useServerFn(listAdminConversations);
+  const createConversation = useServerFn(createAdminConversation);
+  const getConversation = useServerFn(getAdminConversation);
+  const conversations = useQuery({
+    queryKey: ["admin-conversations"],
+    queryFn: () => listConversations(),
+  });
+  const history = useQuery({
+    queryKey: ["admin-conversation", threadId],
+    enabled: Boolean(threadId),
+    queryFn: () => getConversation({ data: { threadId: threadId! } }),
+  });
+  const messages: ChatMessage[] = [
+    ...(history.data ?? []),
+    ...(optimisticMessage ? [{ role: "user" as const, content: optimisticMessage }] : []),
+    ...(unsavedReply ? [unsavedReply] : []),
+  ];
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+  }, [history.data, optimisticMessage, unsavedReply]);
 
   const send = useMutation({
-    mutationFn: async (history: ChatMessage[]) => {
-      const result = await chat({ data: { messages: history.slice(-20) } });
-      return result as { reply: string; actions: string[] };
+    mutationFn: async (message: string) => {
+      let activeId = threadId;
+      if (!activeId) {
+        const thread = await createConversation({ data: { title: message.slice(0, 80) } });
+        activeId = thread.id;
+        setThreadId(activeId);
+      }
+      const result = await chat({ data: { threadId: activeId, message } });
+      return { ...result, threadId: activeId };
     },
-    onSuccess: (result) => {
-      setMessages((current) => [...current, { role: "assistant", content: result.reply }]);
-      if (result.actions.length) void queryClient.invalidateQueries();
-      requestAnimationFrame(() => {
-        listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-      });
+    onSuccess: async (result) => {
+      if ("historySaved" in result && !result.historySaved) {
+        setUnsavedReply({ role: "assistant", content: result.reply, actions: result.actions });
+        toast.error("A resposta não foi salva. Confira as alterações antes de repetir a ordem.");
+      } else if (!("historySaved" in result)) {
+        setUnsavedReply({ role: "assistant", content: result.reply, actions: result.actions });
+      }
+      if (result.actions.length) {
+        await queryClient.invalidateQueries({
+          predicate: (query) => !String(query.queryKey[0]).startsWith("admin-conversation"),
+        });
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-conversation", result.threadId] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-conversations"] }),
+      ]);
+      setOptimisticMessage(null);
     },
-    onError: () => toast.error("A IA não respondeu agora. Tente de novo."),
+    onError: async () => {
+      setOptimisticMessage(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin-conversation"] });
+      toast.error("Falha no envio. Confira o histórico e as alterações antes de repetir a ordem.");
+    },
   });
 
   function submit(text: string) {
     const value = text.trim();
-    if (!value || send.isPending) return;
-    const next: ChatMessage[] = [...messages, { role: "user", content: value }];
-    setMessages(next);
+    if (
+      !value ||
+      value.length > 4000 ||
+      send.isPending ||
+      history.isFetching ||
+      conversations.isPending ||
+      conversations.isError ||
+      history.isError
+    )
+      return;
+    setOptimisticMessage(value);
+    setUnsavedReply(null);
     setInput("");
-    send.mutate(next);
-    requestAnimationFrame(() => {
-      listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-    });
+    send.mutate(value);
+  }
+
+  function selectConversation(id: string | null) {
+    setThreadId(id);
+    setOptimisticMessage(null);
+    setUnsavedReply(null);
+    setInput("");
   }
 
   return (
@@ -64,7 +120,64 @@ export function AdminAiPanel() {
         <h2 className="font-display text-sm">Copiloto da loja</h2>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          aria-label="Conversas do Copiloto"
+          className="min-w-0 flex-1 rounded-md border border-border bg-background p-2 text-sm"
+          value={threadId ?? ""}
+          disabled={send.isPending || conversations.isPending}
+          onChange={(event) => selectConversation(event.target.value || null)}
+        >
+          <option value="">Nova conversa</option>
+          {conversations.data?.map((thread) => (
+            <option key={thread.id} value={thread.id}>
+              {thread.title}
+            </option>
+          ))}
+        </select>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={
+            send.isPending ||
+            history.isFetching ||
+            conversations.isPending ||
+            conversations.isError ||
+            history.isError
+          }
+          onClick={() => selectConversation(null)}
+        >
+          <Plus className="size-4" /> Nova
+        </Button>
+      </div>
+      {conversations.isError || history.isError ? (
+        <div role="alert" className="text-sm text-destructive">
+          Não foi possível carregar as conversas.
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              void conversations.refetch();
+              if (threadId) void history.refetch();
+            }}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      ) : null}
+
       <div ref={listRef} className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
+        {history.isPending && threadId ? (
+          <p role="status" className="text-sm text-muted-foreground">
+            Carregando histórico...
+          </p>
+        ) : null}
+        {!threadId && !messages.length ? (
+          <p className="text-sm text-muted-foreground">
+            Comece uma conversa para criar produtos, consultar a loja ou escrever anúncios. As
+            conversas ficam salvas aqui.
+          </p>
+        ) : null}
         {messages.map((message, index) => (
           <div
             key={index}
@@ -77,6 +190,11 @@ export function AdminAiPanel() {
             <div className="prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1">
               <ReactMarkdown>{message.content}</ReactMarkdown>
             </div>
+            {message.actions?.length ? (
+              <p className="mt-2 break-words text-xs text-muted-foreground">
+                Ferramentas executadas: {message.actions.join(", ")}
+              </p>
+            ) : null}
           </div>
         ))}
         {send.isPending ? (
@@ -94,7 +212,13 @@ export function AdminAiPanel() {
             size="sm"
             variant="outline"
             className="h-auto whitespace-normal py-1 text-left text-xs"
-            disabled={send.isPending}
+            disabled={
+              send.isPending ||
+              history.isFetching ||
+              conversations.isPending ||
+              conversations.isError ||
+              history.isError
+            }
             onClick={() => submit(suggestion)}
           >
             {suggestion}
@@ -105,18 +229,43 @@ export function AdminAiPanel() {
       <div className="flex items-end gap-2">
         <Textarea
           rows={2}
+          aria-label="Mensagem para o Copiloto"
+          maxLength={4000}
+          disabled={
+            send.isPending ||
+            history.isFetching ||
+            conversations.isPending ||
+            conversations.isError ||
+            history.isError
+          }
           value={input}
           placeholder="Escreva sua ordem para a IA..."
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               submit(input);
             }
           }}
         />
-        <Button type="button" disabled={send.isPending || !input.trim()} onClick={() => submit(input)}>
-          {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+        <Button
+          type="button"
+          aria-label="Enviar mensagem"
+          disabled={
+            send.isPending ||
+            !input.trim() ||
+            history.isFetching ||
+            conversations.isPending ||
+            conversations.isError ||
+            history.isError
+          }
+          onClick={() => submit(input)}
+        >
+          {send.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Send className="size-4" />
+          )}
         </Button>
       </div>
     </div>

@@ -166,3 +166,24 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Copiloto: conversas salvas
+
+O painel administrativo permite iniciar uma conversa ou reabrir um histórico salvo.
+Mensagens e ferramentas executadas ficam nas tabelas `admin_copilot_threads` e
+`admin_copilot_messages`, usando as migrations existentes de 3 de outubro de 2026.
+Todos os endpoints verificam o administrador e o dono da conversa; as consultas
+usam o cliente autenticado com RLS. A IA recebe as últimas 20 mensagens válidas
+da conversa selecionada, carregadas no servidor.
+
+Para validar localmente (Node.js 22.6 ou mais recente):
+
+```sh
+npm test
+npx tsc --noEmit
+npm run build
+```
+
+A validação completa com o administrador exige as configurações de servidor do
+Supabase e `LOVABLE_API_KEY`. Esta etapa implementa histórico por conversa; memória
+entre conversas e anexos de mídia continuam pendentes no roadmap.
